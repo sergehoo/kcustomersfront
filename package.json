@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "optimize:production": "node scripts/optimizeProductionVilla.mjs",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
+    "optimize:production": "node scripts/optimizeProductionVilla.mjs",
     "inspect:glb": "node scripts/inspectGlb.mjs"
   },
   "dependencies": {
