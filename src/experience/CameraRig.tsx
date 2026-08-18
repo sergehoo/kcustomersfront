@@ -101,8 +101,9 @@ export function CameraRig({ progress, mobile }: { progress: number; mobile: bool
 
     // Interiors need a little more exposure than the open hillside.
     const inside = MathUtils.smoothstep(progress, .24, .34) * (1 - MathUtils.smoothstep(progress, .66, .78))
-    const targetExposure = .79 + inside * .17
+    const targetExposure = .70 + inside * .18
     gl.toneMappingExposure = MathUtils.lerp(gl.toneMappingExposure, targetExposure, 1 - Math.exp(-step * 1.8))
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__gl = gl
   })
 
   return null

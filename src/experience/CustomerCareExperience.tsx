@@ -163,7 +163,7 @@ export function CustomerCareExperience() {
         dpr={mobile ? [1, 1.2] : [1, 1.6]}
         camera={{ fov: mobile ? 58 : 52, near: .1, far: 140, position: [5.6, 2.5, 30.2] }}
         gl={{ antialias: !mobile, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: import.meta.env.DEV }}
-        onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = .79 }}
+        onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = .70 }}
       >
         <Scene progress={progress} mobile={mobile} debug3d={debug3d} />
       </Canvas> : webgl === false ? <Suspense fallback={null}><StaticFallback /></Suspense> : null}
