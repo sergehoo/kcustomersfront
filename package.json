@@ -5,20 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "generate:villa": "node scripts/generateVillaGlb.mjs && node scripts/optimizeVillaGlb.mjs",
-    "import:assets": "node scripts/importPolyHavenAssets.mjs",
-    "optimize:exterior": "node scripts/optimizeExteriorVilla.mjs",
     "optimize:production": "node scripts/optimizeProductionVilla.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "inspect:glb": "node scripts/inspectGlb.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
-    "@tanstack/react-query": "^5.66.8",
-    "framer-motion": "^12.4.7",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

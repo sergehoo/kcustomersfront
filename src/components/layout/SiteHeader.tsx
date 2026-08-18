@@ -1,5 +1,4 @@
 import { CalendarDays, Menu, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useState, type MouseEvent } from 'react'
 import type { ExperienceSectionId } from '../../experience/sections'
@@ -75,13 +74,9 @@ export function SiteHeader({ onExperienceNavigate, activeScene }: {
       {open ? <X /> : <Menu />}
     </button>
 
-    <AnimatePresence>{open && <motion.nav
-      className="mobile-nav"
-      aria-label="Navigation mobile"
-      initial={{ opacity: 0, y: -12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -12 }}
-    >
+    {/* CSS transition rather than framer-motion: a 44 kB gzip dependency on the
+        landing's critical path bought one dropdown fade. */}
+    <nav className={`mobile-nav ${open ? 'mobile-nav--open' : ''}`} aria-label="Navigation mobile" hidden={!open}>
       {LINKS.map((link) => <NavLink
         key={link.label}
         to={hrefFor(link)}
@@ -89,6 +84,6 @@ export function SiteHeader({ onExperienceNavigate, activeScene }: {
         className={isActive(link) ? 'active' : ''}
       >{link.label}</NavLink>)}
       <Link to="/rendez-vous" onClick={() => setOpen(false)}>Prendre rendez-vous</Link>
-    </motion.nav>}</AnimatePresence>
+    </nav>
   </header>
 }

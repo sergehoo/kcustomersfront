@@ -11,6 +11,21 @@
     <meta property="og:description" content="Votre relation avec KAYDAN, simplement." />
     <meta property="og:type" content="website" />
     <title>KAYDAN Customer Care</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <script>
+      // Start the villa download immediately instead of waiting for three.js to
+      // parse and execute. The variant must match ExteriorVilla's breakpoint.
+      (function () {
+        var mobile = window.matchMedia('(max-width: 767px)').matches
+        var link = document.createElement('link')
+        link.rel = 'preload'
+        link.as = 'fetch'
+        link.crossOrigin = 'anonymous'
+        link.href = '/models/production/kaydan-villa-production-' + (mobile ? 'mobile' : 'web') + '.glb'
+        document.head.appendChild(link)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
