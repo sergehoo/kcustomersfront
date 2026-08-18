@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.DS_Store
+
+# Sources 3D lourdes (non versionnées : régénérables via npm run optimize:production)
+blender/
+audit/
+*.blend
+*.blend1
+
+# Modèles sources non optimisés (>50 Mo) — voir public/models/README.md
+public/models/_sources/

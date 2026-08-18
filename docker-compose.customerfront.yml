@@ -1,0 +1,15 @@
+# Override à fusionner avec le docker-compose existant du backend.
+# Il ne redéfinit ni API, ni base de données, ni Redis, ni workers, ni réseau.
+services:
+  customerfront:
+    build:
+      context: ./customerfront
+    restart: unless-stopped
+    networks:
+      - default
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.customerfront.rule=Host(`customer.kaydanshield.com`)
+      - traefik.http.routers.customerfront.entrypoints=websecure
+      - traefik.http.routers.customerfront.tls=true
+      - traefik.http.services.customerfront.loadbalancer.server.port=80

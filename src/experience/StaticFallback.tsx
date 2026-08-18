@@ -1,0 +1,1 @@
+export default function StaticFallback() { return <div className="webgl-fallback"><div className="fallback-house"><span /><span /><span /></div><p>Votre expérience KAYDAN reste accessible sans WebGL.</p></div> }
