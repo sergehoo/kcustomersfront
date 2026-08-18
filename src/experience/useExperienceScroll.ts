@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { EXPERIENCE_SECTIONS, sectionAt, type ExperienceSectionId } from './sections'
+import { SCENE_QUERY_KEY } from '../components/layout/SiteHeader'
+import { EXPERIENCE_SECTIONS, landingProgressOf, sectionAt, type ExperienceSectionId } from './sections'
 
 const clamp = (value: number) => Math.min(1, Math.max(0, value))
 
@@ -21,17 +22,38 @@ export function useExperienceScroll() {
     update()
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', onScroll)
-    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (frame) cancelAnimationFrame(frame) }
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
   }, [])
 
-  const moveTo = useCallback((id: ExperienceSectionId) => {
-    const target = EXPERIENCE_SECTIONS.find((section) => section.id === id) ?? EXPERIENCE_SECTIONS[0]
+  const moveToProgress = useCallback((value: number) => {
     const element = ref.current
     if (!element) return
     const top = element.getBoundingClientRect().top + window.scrollY
     const distance = element.offsetHeight - window.innerHeight
-    window.scrollTo({ top: top + target.progress * distance, behavior: 'smooth' })
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: top + clamp(value) * distance, behavior: reduced ? 'auto' : 'smooth' })
   }, [])
 
-  return { ref, progress, section: sectionAt(progress), moveTo }
+  const moveTo = useCallback((id: ExperienceSectionId) => {
+    moveToProgress(landingProgressOf(id))
+  }, [moveToProgress])
+
+  // Deep link from a sub-page: `/?scene=visitor` opens the visit on that room.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get(SCENE_QUERY_KEY)
+    if (!requested || !EXPERIENCE_SECTIONS.some((section) => section.id === requested)) return
+    const frame = requestAnimationFrame(() => {
+      moveToProgress(landingProgressOf(requested as ExperienceSectionId))
+      const url = new URL(window.location.href)
+      url.searchParams.delete(SCENE_QUERY_KEY)
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [moveToProgress])
+
+  return { ref, progress, section: sectionAt(progress), moveTo, moveToProgress }
 }

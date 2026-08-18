@@ -1,29 +1,94 @@
 import { CalendarDays, Menu, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useState, type MouseEvent } from 'react'
 import type { ExperienceSectionId } from '../../experience/sections'
 
-const links: { label: string; href: string; scene?: ExperienceSectionId }[] = [
-  { label: 'Accueil', href: '/', scene: 'exterior' }, { label: 'Services', href: '/', scene: 'entrance' }, { label: 'Rendez-vous', href: '/rendez-vous', scene: 'entrance' }, { label: 'Visiteur', href: '/visiteur', scene: 'visitor' },
-  { label: 'Réclamation', href: '/reclamation', scene: 'complaint' }, { label: 'Suivi', href: '/suivi', scene: 'tracking' }, { label: 'Contact', href: '/contact', scene: 'contact' },
+/**
+ * Two kinds of destination, kept explicitly apart:
+ * - `scene` moves the camera inside the landing visit (and deep-links to it from a sub-page);
+ * - `route` always opens a real page, on the landing as well as anywhere else.
+ * Every entry used to carry a scene, so the whole header — CTA included — was
+ * swallowed by `preventDefault()` and no page was ever reachable from `/`.
+ */
+type HeaderLink =
+  | { label: string; type: 'scene'; scene: ExperienceSectionId }
+  | { label: string; type: 'route'; route: string; scene?: ExperienceSectionId }
+
+const LINKS: HeaderLink[] = [
+  { label: 'Accueil', type: 'scene', scene: 'exterior' },
+  { label: 'La visite', type: 'scene', scene: 'entrance' },
+  { label: 'Visiteur', type: 'route', route: '/visiteur', scene: 'visitor' },
+  { label: 'Réclamation', type: 'route', route: '/reclamation', scene: 'office' },
+  { label: 'Suivi', type: 'route', route: '/suivi', scene: 'circulation' },
+  { label: 'Espace client', type: 'route', route: '/espace-client', scene: 'client' },
+  { label: 'Contact', type: 'route', route: '/contact', scene: 'terrace' },
 ]
 
-export function SiteHeader({ onExperienceNavigate, activeScene }: { onExperienceNavigate?: (id: ExperienceSectionId) => void; activeScene?: ExperienceSectionId }) {
+export const SCENE_QUERY_KEY = 'scene'
+
+export function SiteHeader({ onExperienceNavigate, activeScene }: {
+  /** Provided only by the landing page — its presence is what makes scene links local. */
+  onExperienceNavigate?: (id: ExperienceSectionId) => void
+  activeScene?: ExperienceSectionId
+}) {
   const [open, setOpen] = useState(false)
-  const navigate = (event: MouseEvent<HTMLAnchorElement>, scene?: ExperienceSectionId) => { if (scene && onExperienceNavigate) { event.preventDefault(); onExperienceNavigate(scene); setOpen(false) } }
+  const { pathname } = useLocation()
+
+  const hrefFor = (link: HeaderLink) => {
+    if (link.type === 'route') return link.route
+    // On the landing the href is only a fallback for middle-click / no-JS; elsewhere it deep-links.
+    return onExperienceNavigate ? '/' : `/?${SCENE_QUERY_KEY}=${link.scene}`
+  }
+
+  const onClick = (event: MouseEvent<HTMLAnchorElement>, link: HeaderLink) => {
+    setOpen(false)
+    if (link.type !== 'scene' || !onExperienceNavigate) return
+    event.preventDefault()
+    onExperienceNavigate(link.scene)
+  }
+
+  const isActive = (link: HeaderLink) => {
+    if (link.type === 'route') return pathname === link.route
+    return Boolean(activeScene) && link.scene === activeScene
+  }
+
   return <header className="site-header">
     <Link to="/" className="brand" aria-label="KAYDAN Customer Care — accueil"><span>KAYDAN</span><small>CUSTOMER CARE</small></Link>
+
     <nav className="desktop-nav" aria-label="Navigation principale">
-      {links.map(({ label, href, scene }) => <NavLink key={label} to={href} onClick={(event) => navigate(event, scene)} className={({ isActive }) => activeScene ? scene === activeScene ? 'active' : '' : isActive ? 'active' : ''}>{label}</NavLink>)}
+      {LINKS.map((link) => <NavLink
+        key={link.label}
+        to={hrefFor(link)}
+        onClick={(event) => onClick(event, link)}
+        className={isActive(link) ? 'active' : ''}
+        aria-current={isActive(link) ? (link.type === 'route' ? 'page' : 'step') : undefined}
+      >{link.label}</NavLink>)}
     </nav>
-    <Link className="header-cta" to="/rendez-vous" onClick={(event) => navigate(event, 'entrance')}>Prendre rendez-vous <CalendarDays size={16} strokeWidth={1.5} /></Link>
+
+    {/* Always a real navigation: booking is a page, never a camera move. */}
+    <Link className="header-cta" to="/rendez-vous" onClick={() => setOpen(false)}>
+      Prendre rendez-vous <CalendarDays size={16} strokeWidth={1.5} />
+    </Link>
+
     <button className="menu-toggle" onClick={() => setOpen(!open)} aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={open}>
       {open ? <X /> : <Menu />}
     </button>
-    <AnimatePresence>{open && <motion.nav className="mobile-nav" aria-label="Navigation mobile" initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}>
-      {links.map(({ label, href, scene }) => <NavLink key={label} to={href} onClick={(event) => navigate(event, scene)}>{label}</NavLink>)}
-      <Link to="/rendez-vous" onClick={(event) => navigate(event, 'entrance')}>Prendre rendez-vous</Link>
+
+    <AnimatePresence>{open && <motion.nav
+      className="mobile-nav"
+      aria-label="Navigation mobile"
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+    >
+      {LINKS.map((link) => <NavLink
+        key={link.label}
+        to={hrefFor(link)}
+        onClick={(event) => onClick(event, link)}
+        className={isActive(link) ? 'active' : ''}
+      >{link.label}</NavLink>)}
+      <Link to="/rendez-vous" onClick={() => setOpen(false)}>Prendre rendez-vous</Link>
     </motion.nav>}</AnimatePresence>
   </header>
 }
