@@ -48,12 +48,16 @@ const KEYFRAMES: Keyframe[] = [
   // raycasting shows solid plaster behind it on every axis. The visit continues
   // along the east flank of the terrace and enters through the south sliding bay
   // (x -4.36…-3.14 at z 8.6), which is a real opening — no wall is ever crossed.
-  { at: .234, position: [7.6, 5.45, 15.2], target: [7.4, 4.9, 10.8], fov: 52, note: 'flanc est' },
-  { at: .243, position: [6.0, 5.42, 10.4], target: [-0.4, 4.9, 8.9], fov: 54, note: 'vers la baie sud' },
-  { at: .248, position: [-3.7, 5.35, 8.7], target: [-4.6, 4.9, 11.8], fov: 56, note: 'franchissement de la baie' },
+  // South along the east walk (x 8.35 clears the villa face at x 6.6), out past the
+  // south elevation, then west across the terrace and north through the bay. Every
+  // leg stays on built deck — the previous version cut the corner through the wall.
+  { at: .234, position: [8.35, 5.45, 14.6], target: [8.3, 4.95, 10.0], fov: 52, note: 'chemin du flanc est' },
+  { at: .2405, position: [8.35, 5.45, 9.2], target: [4.2, 4.95, 7.2], fov: 54, note: 'sortie au sud' },
+  { at: .2455, position: [3.4, 5.42, 7.1], target: [-2.8, 4.95, 7.4], fov: 54, note: 'traversée de la terrasse' },
+  { at: .2485, position: [-3.35, 5.40, 6.9], target: [-3.45, 5.05, 10.8], fov: 56, note: 'face à la baie' },
 
   // 03 — HALL D’ACCUEIL. Through the doorway, past the entrance pier, onto the counter.
-  { at: 'visitor', hold: .5, position: [-3.2, 5.42, 11.2], target: [-5.4, 4.8, 14.6], fov: 54, note: 'comptoir d’accueil' },
+  { at: 'visitor', hold: .5, position: [-3.3, 5.42, 10.9], target: [-5.4, 4.8, 14.6], fov: 54, note: 'comptoir d’accueil' },
 
   // 04 — ESPACE DE TRAVAIL. The six-seat table, stone wall behind, pendant overhead.
   { at: .31, position: [-3.0, 5.38, 11.4], target: [-5.8, 4.7, 12.6], fov: 52 },
