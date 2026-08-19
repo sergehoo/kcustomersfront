@@ -33,46 +33,51 @@ type Keyframe = {
 const KEYFRAMES: Keyframe[] = [
   // 01 — EXTÉRIEUR. Full property shot: hillside, entry stair, front door, garage, car, bonsai.
   { at: 'exterior', position: [4.9, 2.6, 30.0], target: [0.9, 5.2, 16.4], fov: 52, note: 'plan de propriété' },
-  { at: .07, position: [3.6, 2.6, 26.6], target: [1.0, 5.1, 16.2], fov: 51 },
+  { at: .06, position: [3.6, 2.6, 26.6], target: [1.0, 5.1, 16.2], fov: 51 },
 
-  // 02 — ENTRÉE. Walk the driveway, climb the stone stair, arrive at the front door (x 2.17, z 13.6).
-  // The lane x ≈ 0.9→2.2 is the only one clear of the boulders at x -1.9…1.1 and x 1.95…3.2.
+  // 02 — ENTRÉE. Up the stone stair to the front door (x 2.17, z 13.6). The lane
+  // x ≈ 0.9→2.2 is the only one clear of the boulders at x -1.9…1.1 and 1.95…3.2.
   { at: 'entrance', hold: .5, position: [0.9, 2.7, 23.4], target: [1.3, 4.6, 15.6], fov: 50, note: 'pied de l’escalier' },
-  { at: .19, position: [1.4, 3.6, 20.4], target: [1.8, 4.9, 15.0], fov: 49, note: 'montée' },
-  { at: .235, position: [2.2, 4.7, 17.6], target: [2.2, 5.0, 14.2], fov: 50, note: 'haut des marches' },
-  { at: .268, position: [2.3, 5.3, 14.6], target: [2.15, 5.15, 12.6], fov: 54, note: 'porte d’entrée' },
+  { at: .165, position: [1.4, 3.6, 20.4], target: [1.8, 4.9, 15.0], fov: 49, note: 'montée' },
+  { at: .20, position: [2.2, 4.7, 17.6], target: [2.2, 5.0, 14.2], fov: 50, note: 'haut des marches' },
+  { at: .228, position: [2.3, 5.3, 14.6], target: [2.15, 5.15, 12.6], fov: 54, note: 'porte d’entrée' },
 
-  // 03 — HALL D’ACCUEIL. Through the doorway, past the entrance pier, onto the reception counter.
-  { at: .286, position: [0.3, 5.38, 13.4], target: [-3.0, 5.0, 13.6], fov: 56, note: 'franchissement' },
+  // 03 — HALL D’ACCUEIL. Through the doorway, past the entrance pier, onto the counter.
+  { at: .24, position: [0.3, 5.38, 13.4], target: [-3.0, 5.0, 13.6], fov: 56, note: 'franchissement' },
   { at: 'visitor', hold: .5, position: [-2.6, 5.42, 12.2], target: [-5.4, 4.8, 14.6], fov: 52, note: 'comptoir d’accueil' },
 
-  // 04 — ESPACE DE TRAVAIL. Arc around the counter onto the six-seat table, stone wall behind,
-  // pendant overhead, glazing and outdoor kitchen on the right.
-  { at: .37, position: [-3.0, 5.38, 11.4], target: [-5.8, 4.7, 12.6], fov: 52 },
+  // 04 — ESPACE DE TRAVAIL. The six-seat table, stone wall behind, pendant overhead.
+  { at: .31, position: [-3.0, 5.38, 11.4], target: [-5.8, 4.7, 12.6], fov: 52 },
   { at: 'office', hold: .5, position: [-1.6, 5.32, 12.4], target: [-6.0, 4.62, 10.6], fov: 47, note: 'table de réunion' },
 
-  // 05 — CIRCULATION. Turn back east and look straight up the flight. Framing the
-  // stair head-on shows the floating treads and the steel stringers; the earlier
-  // three-quarter angle read them through the glass balustrade, which reflected
-  // more than it revealed.
-  { at: .50, position: [-0.4, 5.42, 12.0], target: [0.6, 5.8, 14.4], fov: 53, note: 'pivot vers l’escalier' },
-  { at: 'circulation', hold: .5, position: [1.3, 5.5, 11.4], target: [0.9, 6.5, 15.2], fov: 55, note: 'escalier suspendu' },
-  { at: .62, position: [0.6, 5.5, 10.2], target: [-1.4, 5.4, 8.8], fov: 54, note: 'pivot au sud vers la baie' },
+  // 05 — CIRCULATION. Head-on up the flight: floating treads, steel stringers, horizon.
+  { at: .43, position: [-0.4, 5.42, 12.0], target: [0.6, 5.8, 14.4], fov: 53, note: 'pivot vers l’escalier' },
+  { at: 'circulation', hold: .45, position: [1.3, 5.5, 11.4], target: [0.9, 6.5, 15.2], fov: 55, note: 'escalier suspendu' },
 
-  // 06 — SALON CLIENT. Out through the sliding bay (the only opening, x -4.36…-3.14 at z 8.6)
-  // onto the terrace table: six seats, outdoor kitchen, interior still readable through the glass.
-  { at: .645, position: [-2.4, 5.4, 10.4], target: [-4.0, 4.9, 8.0], fov: 54 },
-  { at: .672, position: [-3.7, 5.35, 8.6], target: [-4.4, 4.7, 6.6], fov: 54, note: 'passage de la baie' },
+  // 06 — SUITE PARENTALE. Climb to the landing, then into the master bedroom.
+  { at: .525, position: [1.0, 7.5, 13.4], target: [0.2, 7.7, 11.4], fov: 56, note: 'arrivée à l’étage' },
+  { at: .555, position: [0.0, 8.55, 11.8], target: [-2.8, 8.3, 10.4], fov: 58, note: 'palier' },
+  { at: 'suite', hold: .5, position: [-2.6, 8.5, 9.0], target: [-5.6, 7.9, 11.5], fov: 60, note: 'lit, dressing, baie sud' },
+
+  // 07 — SALLE DE BAIN. Across the landing into the master bathroom.
+  { at: .625, position: [-2.3, 8.5, 11.4], target: [-4.2, 8.2, 13.4], fov: 58 },
+  { at: 'bathroom', hold: .45, position: [-7.4, 8.45, 12.7], target: [-3.3, 7.7, 15.2], fov: 62, note: 'double vasque, baignoire, douche' },
+
+  // Back down the stair and out through the sliding bay (x -4.36…-3.14 at z 8.6).
+  { at: .695, position: [-0.6, 7.9, 13.4], target: [0.6, 6.6, 12.4], fov: 56, note: 'redescente' },
+  { at: .715, position: [-1.6, 5.6, 11.0], target: [-3.8, 5.0, 8.4], fov: 54 },
+  { at: .728, position: [-3.7, 5.35, 8.6], target: [-4.4, 4.7, 6.6], fov: 54, note: 'passage de la baie' },
+
+  // 08 — SALON CLIENT. The terrace table, outdoor kitchen, interior through the glass.
   { at: 'client', hold: .5, position: [-0.6, 5.3, 4.2], target: [-4.6, 4.5, 6.6], fov: 52, note: 'table d’échange' },
 
-  // 07 — TERRASSE. Along the deck west of the pool, then turn back: south façade, both levels of
-  // glazing, lit interior, sunbeds, pool in the foreground. The climax of the visit.
-  { at: .78, position: [-2.2, 5.35, 2.6], target: [0.6, 5.0, 7.2], fov: 53 },
+  // 09 — TERRASSE. Along the deck west of the pool, then turn back onto the façade.
+  { at: .81, position: [-2.2, 5.35, 2.6], target: [0.6, 5.0, 7.2], fov: 53 },
   { at: 'terrace', hold: .5, position: [-3.6, 5.6, -0.6], target: [2.6, 5.2, 7.4], fov: 55, note: 'façade sud + piscine' },
 
-  // Closing lift. The camera rises off the deck and pulls back while the DOM outro takes the frame.
-  { at: .905, position: [-4.6, 6.3, -3.2], target: [1.6, 5.4, 8.0], fov: 55 },
-  { at: .96, position: [-6.2, 7.4, -5.2], target: [1.8, 5.4, 8.4], fov: 54 },
+  // Closing lift while the DOM outro takes the frame.
+  { at: .92, position: [-4.6, 6.3, -3.2], target: [1.6, 5.4, 8.0], fov: 55 },
+  { at: .965, position: [-6.2, 7.4, -5.2], target: [1.8, 5.4, 8.4], fov: 54 },
   { at: 1, position: [-7.6, 8.3, -6.6], target: [1.8, 5.4, 8.6], fov: 54, note: 'plan large final' },
 ]
 
