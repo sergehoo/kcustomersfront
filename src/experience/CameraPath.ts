@@ -35,8 +35,8 @@ const KEYFRAMES: Keyframe[] = [
   // above the retaining wall so the whole façade, the new stair and the car all
   // read. Blue hour — tested against full daylight and the lit interiors, warm
   // stone and visible step lights sell the house far better.
-  { at: 'exterior', hold: .45, position: [7.5, 4.6, 31.0], target: [-0.5, 5.3, 17.0], fov: 48, note: 'hero façade' },
-  { at: .075, position: [5.6, 3.9, 27.4], target: [0.4, 5.2, 16.8], fov: 48 },
+  { at: 'exterior', hold: .45, position: [8.2, 3.9, 33.5], target: [-0.6, 5.4, 17.4], fov: 46, note: 'hero façade' },
+  { at: .075, position: [5.8, 3.5, 29.0], target: [0.4, 5.3, 17.0], fov: 47 },
 
   // 02 — ENTRÉE. Straight up the new flights (18 equal risers, centred on the door
   // at x 2.15), landing on the entrance platform.
