@@ -40,6 +40,41 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
 
   useLayoutEffect(() => {
     animatedWaterMaps.current.clear()
+
+    // The villa ships real photographic stone and travertine maps. The walls,
+    // cheeks, treads and paving authored in Blender only had a flat tint plus a
+    // detail normal, which is why they read as pale card next to the building.
+    // Borrowing the building's own maps makes the new masonry the same material.
+    const donors = new Map<string, MeshStandardMaterial>()
+    scene.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+      for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+        if (material instanceof MeshStandardMaterial && material.map) donors.set(material.name, material)
+      }
+    })
+    const stoneDonor = donors.get('rock_wall_11_disp_2k')
+    // Travertine, not the stone pathway: the pathway albedo is a dark grey and it
+    // turned every tread near-black.
+    const paveDonor = donors.get('KAYDAN_TRAVERTINE') ?? donors.get('stone_pathway_02')
+
+    const borrow = (target: MeshStandardMaterial, donor: MeshStandardMaterial | undefined, repeat: number, tint: string, mix: number) => {
+      if (!donor?.map) return
+      for (const slot of ['map', 'normalMap', 'roughnessMap'] as const) {
+        const source = donor[slot]
+        if (!source) continue
+        const clone = source.clone()
+        clone.wrapS = RepeatWrapping
+        clone.wrapT = RepeatWrapping
+        clone.repeat.set(repeat, repeat)
+        clone.anisotropy = mobile ? 2 : 8
+        clone.needsUpdate = true
+        target[slot] = clone
+      }
+      target.color.set('#ffffff').lerp(new Color(tint), mix)
+      target.normalScale = new Vector2(.8, .8)
+      target.needsUpdate = true
+    }
+
     for (const texture of [plasterNormal, plasterRoughness, stoneNormal]) {
       texture.wrapS = RepeatWrapping
       texture.wrapT = RepeatWrapping
@@ -84,14 +119,18 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
           material.metalness = 0
           material.roughness = .68
         }
+        if (/^KAYDAN_FRONT_STONE$/.test(name)) borrow(material, stoneDonor, 2.2, '#4a463f', .58)
+        if (/^KAYDAN_FRONT_STONE_WARM$/.test(name)) borrow(material, stoneDonor, 1.7, '#9a9184', .3)
+        if (/^KAYDAN_TREAD$/.test(name)) borrow(material, paveDonor, 1.2, '#b8b2a7', .22)
+        if (/^KAYDAN_PAVING$/.test(name)) borrow(material, paveDonor, 5.5, '#8d877e', .38)
         if (AUTHORED.test(name)) {
           // Roughness 1 with a roughness map still multiplies to fully matt.
           material.roughness = /TREAD|PAVING/.test(name) ? .52 : .68
           material.envMapIntensity = 1.15
           // The treads were the brightest thing in the hero, so the eye landed on
           // the stair before the house. Knocking them back puts the villa first.
-          if (/TREAD/.test(name)) material.color.lerp(new Color('#6f6a62'), .52)
-          if (/PAVING/.test(name)) material.color.lerp(new Color('#55524d'), .3)
+          if (/TREAD/.test(name) && !material.map) material.color.lerp(new Color('#6f6a62'), .52)
+          if (/PAVING/.test(name) && !material.map) material.color.lerp(new Color('#55524d'), .3)
         }
         if (/^WindowFrame$/.test(name)) {
           material.roughness = .38

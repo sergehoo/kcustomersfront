@@ -31,23 +31,29 @@ type Keyframe = {
  */
 
 const KEYFRAMES: Keyframe[] = [
-  // 01 — EXTÉRIEUR. Hero shot: three-quarter view from the forecourt, raised just
-  // above the retaining wall so the whole façade, the new stair and the car all
-  // read. Blue hour — tested against full daylight and the lit interiors, warm
-  // stone and visible step lights sell the house far better.
-  { at: 'exterior', hold: .45, position: [8.2, 3.9, 33.5], target: [-0.6, 5.4, 17.4], fov: 46, note: 'hero façade' },
-  { at: .075, position: [5.8, 3.5, 29.0], target: [0.4, 5.3, 17.0], fov: 47 },
+  // 01 — EXTÉRIEUR. Hero from inside the gate: road, forecourt, driveway, car and
+  // garage on the left; the pedestrian stair climbing the east flank on the right;
+  // the recessed front door under its canopy in the middle. Both circulations read
+  // at a glance and neither blocks the other.
+  { at: 'exterior', hold: .45, position: [12.4, 3.5, 30.5], target: [-2.2, 4.9, 19.0], fov: 56, note: 'hero — accès lisibles' },
+  { at: .075, position: [10.6, 3.2, 28.0], target: [-1.0, 4.9, 19.0], fov: 54 },
 
-  // 02 — ENTRÉE. Straight up the new flights (18 equal risers, centred on the door
-  // at x 2.15), landing on the entrance platform.
-  { at: 'entrance', hold: .5, position: [2.15, 2.6, 27.2], target: [2.15, 4.7, 19.4], fov: 50, note: 'pied de l’escalier' },
-  { at: .165, position: [2.15, 3.5, 23.6], target: [2.15, 5.0, 17.4], fov: 49, note: 'première volée' },
-  { at: .20, position: [2.15, 4.9, 20.2], target: [2.2, 5.2, 15.0], fov: 50, note: 'seconde volée' },
-  { at: .228, position: [2.3, 5.35, 15.6], target: [2.15, 5.2, 12.8], fov: 54, note: 'porte d’entrée' },
+  // 02 — ENTRÉE. Up the east flight (x 7.3, the only axis with a clear run to the
+  // villa's own terrace), onto the landing, then a turn towards the door.
+  { at: 'entrance', hold: .5, position: [7.3, 2.5, 28.2], target: [7.2, 4.4, 21.5], fov: 52, note: 'pied de l’escalier' },
+  { at: .16, position: [7.3, 3.4, 24.6], target: [7.0, 4.8, 19.6], fov: 50, note: 'première volée' },
+  { at: .195, position: [7.3, 4.9, 21.2], target: [6.0, 5.0, 17.6], fov: 52, note: 'seconde volée' },
+  { at: .218, position: [6.2, 5.45, 18.4], target: [2.8, 5.0, 15.6], fov: 54, note: 'palier, pivot vers la porte' },
+  // The recessed door is presented from the landing, but it is not the way in:
+  // raycasting shows solid plaster behind it on every axis. The visit continues
+  // along the east flank of the terrace and enters through the south sliding bay
+  // (x -4.36…-3.14 at z 8.6), which is a real opening — no wall is ever crossed.
+  { at: .234, position: [7.6, 5.45, 15.2], target: [7.4, 4.9, 10.8], fov: 52, note: 'flanc est' },
+  { at: .243, position: [6.0, 5.42, 10.4], target: [-0.4, 4.9, 8.9], fov: 54, note: 'vers la baie sud' },
+  { at: .248, position: [-3.7, 5.35, 8.7], target: [-4.6, 4.9, 11.8], fov: 56, note: 'franchissement de la baie' },
 
   // 03 — HALL D’ACCUEIL. Through the doorway, past the entrance pier, onto the counter.
-  { at: .24, position: [0.3, 5.38, 13.4], target: [-3.0, 5.0, 13.6], fov: 56, note: 'franchissement' },
-  { at: 'visitor', hold: .5, position: [-2.6, 5.42, 12.2], target: [-5.4, 4.8, 14.6], fov: 52, note: 'comptoir d’accueil' },
+  { at: 'visitor', hold: .5, position: [-3.2, 5.42, 11.2], target: [-5.4, 4.8, 14.6], fov: 54, note: 'comptoir d’accueil' },
 
   // 04 — ESPACE DE TRAVAIL. The six-seat table, stone wall behind, pendant overhead.
   { at: .31, position: [-3.0, 5.38, 11.4], target: [-5.8, 4.7, 12.6], fov: 52 },

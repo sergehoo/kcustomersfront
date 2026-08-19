@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
-import { MathUtils, PerspectiveCamera, Vector3 } from 'three'
+import { MathUtils, PerspectiveCamera, Raycaster, Vector2, Vector3 } from 'three'
 import { cameraStateAt } from './CameraPath'
 
 type CameraOverride = { position: Vector3; target: Vector3; fov: number }
@@ -41,12 +41,36 @@ function readCameraOverride() {
 }
 
 export function CameraRig({ progress, mobile }: { progress: number; mobile: boolean }) {
-  const { camera, pointer, gl } = useThree()
+  const { camera, pointer, gl, scene } = useThree()
+  const raycaster = useMemo(() => new Raycaster(), [])
   const destination = useMemo(() => new Vector3(), [])
   const target = useMemo(() => new Vector3(), [])
   const readOverride = useMemo(readCameraOverride, [])
   const lookCamera = useRef(new PerspectiveCamera())
   const settled = useRef(false)
+
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    /**
+     * Screen-space ground probe. Placing landscaping from estimated world
+     * coordinates and checking the render afterwards kept missing the patches
+     * that actually show; this shoots a ray through a normalised screen point and
+     * reports what is there, so planting can be aimed at the pixels that are bare.
+     */
+    ;(window as unknown as Record<string, unknown>).__probeAt = (nx: number, ny: number) => {
+      raycaster.setFromCamera(new Vector2(nx, ny), camera)
+      const hit = raycaster.intersectObjects(scene.children, true)
+        .find((item) => (item.object as { visible?: boolean }).visible !== false)
+      if (!hit) return null
+      const material = (hit.object as unknown as { material?: { name?: string } | { name?: string }[] }).material
+      const name = Array.isArray(material) ? material[0]?.name : material?.name
+      return {
+        object: hit.object.name,
+        material: name ?? null,
+        point: [+hit.point.x.toFixed(2), +hit.point.y.toFixed(2), +hit.point.z.toFixed(2)],
+        distance: +hit.distance.toFixed(2),
+      }
+    }
+  }
 
   useFrame(({ clock }, delta) => {
     const step = Math.min(delta, 1 / 30)
