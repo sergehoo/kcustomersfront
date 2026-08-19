@@ -14,7 +14,9 @@ const SOFT = /DiningChair|DiningRug|Carpet_Plush/i
 const STONE = /KAYDAN_TRAVERTINE|rock_wall_11|stone_pathway|Ground003|Rock0/i
 const REFLECTIVE = /Glass|Water|Chrome|Gold|Metal|Brass/i
 /** The villa's render surfaces: large, untextured and dead flat until now. */
-const PLASTER = /KAYDAN_PLASTER|Plaster|Concrete048|Material\.001|^material/i
+const PLASTER = /KAYDAN_PLASTER|Plaster|Material\.001|^material/i
+/** Board-formed concrete: the villa's big grey volumes. */
+const CONCRETE = /Concrete048|KAYDAN_CONCRETE/i
 const MASONRY = /rock_wall_11|KAYDAN_TRAVERTINE|stone_pathway/i
 
 export function ExteriorVilla({ mobile }: { mobile: boolean }) {
@@ -87,6 +89,17 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
           // A touch below fully matt so the volumes separate under a low sun.
           material.roughness = .78
           material.envMapIntensity = 1.05
+        }
+        if (CONCRETE.test(name) && !material.normalMap) {
+          // An anisotropic repeat stretches the plaster grain into horizontal
+          // board marks, which is what stops a 10 m concrete face reading as a
+          // single flat tone.
+          material.normalMap = plasterNormal.clone()
+          material.normalMap.repeat.set(3, 26)
+          material.normalMap.needsUpdate = true
+          material.normalScale = new Vector2(.28, .48)
+          material.roughness = .74
+          material.envMapIntensity = 1.1
         }
         if (MASONRY.test(name) && !material.normalMap) {
           material.normalMap = stoneNormal.clone()
