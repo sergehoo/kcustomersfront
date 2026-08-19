@@ -30,8 +30,8 @@ type SkyStop = {
 }
 
 const STOPS: SkyStop[] = [
-  { at: 0, rotation: -.35, skyIntensity: 1.02, envIntensity: .92, elevation: 30, cloud: '#ffffff', fog: '#b3c6d6', fogNear: 150, fogFar: 420 },
-  { at: .30, rotation: -.12, skyIntensity: 1.06, envIntensity: .98, elevation: 36, cloud: '#fffdf8', fog: '#b8cad9', fogNear: 155, fogFar: 430 },
+  { at: 0, rotation: -1.28, skyIntensity: .62, envIntensity: .52, elevation: 8, cloud: '#ffbd86', fog: '#4a5a72', fogNear: 120, fogFar: 380 },
+  { at: .30, rotation: -.55, skyIntensity: .88, envIntensity: .80, elevation: 22, cloud: '#ffe6c8', fog: '#8f9db0', fogNear: 150, fogFar: 420 },
   { at: .62, rotation: .18, skyIntensity: .98, envIntensity: .90, elevation: 24, cloud: '#fff3e0', fog: '#bfc7cc', fogNear: 150, fogFar: 415 },
   { at: .84, rotation: .46, skyIntensity: .90, envIntensity: .80, elevation: 14, cloud: '#ffdfb8', fog: '#cbbdac', fogNear: 135, fogFar: 390 },
   { at: 1, rotation: .62, skyIntensity: .84, envIntensity: .72, elevation: 8, cloud: '#ffcd99', fog: '#d0b498', fogNear: 125, fogFar: 370 },

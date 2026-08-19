@@ -6,8 +6,8 @@ import { sunVectorAt } from './Sky'
 
 /** Sun colour follows the same morning→golden-hour arc as the sky. */
 const SUN_STOPS: { at: number; color: string; intensity: number }[] = [
-  { at: 0, color: '#fff2dc', intensity: 3.1 },
-  { at: .30, color: '#fff6e8', intensity: 3.3 },
+  { at: 0, color: '#ffbe86', intensity: 1.85 },
+  { at: .30, color: '#ffe0b4', intensity: 2.4 },
   { at: .62, color: '#ffe6bd', intensity: 2.9 },
   { at: .84, color: '#ffc98a', intensity: 2.5 },
   { at: 1, color: '#ffb473', intensity: 2.0 },
@@ -40,6 +40,7 @@ const LAMPS = [
 ]
 
 export function Lighting({ progress, mobile }: { progress: number; mobile: boolean }) {
+  const duskBoost = 1 - MathUtils.smoothstep(progress, 0, .3)
   const key = useRef<DirectionalLight>(null)
   const sky = useRef<HemisphereLight>(null)
   const sun = useMemo(() => new Vector3(), [])
@@ -54,7 +55,9 @@ export function Lighting({ progress, mobile }: { progress: number; mobile: boole
       // Pull the sun back indoors so the interior reads by its own lamps.
       key.current.intensity = look.intensity * (1 - inside * .3)
     }
-    if (sky.current) sky.current.intensity = .3 - inside * .06
+    // Dusk needs the lamps to carry the frame, so they rise as the sun drops.
+    const dusk = 1 - MathUtils.smoothstep(progress, 0, .3)
+    if (sky.current) sky.current.intensity = (.3 - inside * .06) * (1 - dusk * .55)
   })
 
   return <>
@@ -75,12 +78,15 @@ export function Lighting({ progress, mobile }: { progress: number; mobile: boole
       shadow-normalBias={.028}
     />
     {/* Bounce from the pale travertine deck, which the HDRI alone under-reads. */}
+    {/* Dusk fill on the entrance façade: at low sun the concrete volumes went
+        almost black and the architecture stopped reading. */}
+    <directionalLight position={[10, 8, 34]} color="#cfd8e6" intensity={.35 + duskBoost * .75} />
     <directionalLight position={[6, 3, -8]} color="#e8dcc8" intensity={.42} />
     {LAMPS.slice(0, mobile ? 4 : LAMPS.length).map((lamp, index) => <pointLight
       key={index}
       position={lamp.position}
       color={lamp.color}
-      intensity={lamp.intensity}
+      intensity={lamp.intensity * (1 + duskBoost * 1.5)}
       distance={lamp.distance}
       decay={2}
     />)}

@@ -31,16 +31,19 @@ type Keyframe = {
  */
 
 const KEYFRAMES: Keyframe[] = [
-  // 01 — EXTÉRIEUR. Full property shot: hillside, entry stair, front door, garage, car, bonsai.
-  { at: 'exterior', position: [4.9, 2.6, 30.0], target: [0.9, 5.2, 16.4], fov: 52, note: 'plan de propriété' },
-  { at: .06, position: [3.6, 2.6, 26.6], target: [1.0, 5.1, 16.2], fov: 51 },
+  // 01 — EXTÉRIEUR. Hero shot: three-quarter view from the forecourt, raised just
+  // above the retaining wall so the whole façade, the new stair and the car all
+  // read. Blue hour — tested against full daylight and the lit interiors, warm
+  // stone and visible step lights sell the house far better.
+  { at: 'exterior', hold: .45, position: [7.5, 4.6, 31.0], target: [-0.5, 5.3, 17.0], fov: 48, note: 'hero façade' },
+  { at: .075, position: [5.6, 3.9, 27.4], target: [0.4, 5.2, 16.8], fov: 48 },
 
-  // 02 — ENTRÉE. Up the stone stair to the front door (x 2.17, z 13.6). The lane
-  // x ≈ 0.9→2.2 is the only one clear of the boulders at x -1.9…1.1 and 1.95…3.2.
-  { at: 'entrance', hold: .5, position: [0.9, 2.7, 23.4], target: [1.3, 4.6, 15.6], fov: 50, note: 'pied de l’escalier' },
-  { at: .165, position: [1.4, 3.6, 20.4], target: [1.8, 4.9, 15.0], fov: 49, note: 'montée' },
-  { at: .20, position: [2.2, 4.7, 17.6], target: [2.2, 5.0, 14.2], fov: 50, note: 'haut des marches' },
-  { at: .228, position: [2.3, 5.3, 14.6], target: [2.15, 5.15, 12.6], fov: 54, note: 'porte d’entrée' },
+  // 02 — ENTRÉE. Straight up the new flights (18 equal risers, centred on the door
+  // at x 2.15), landing on the entrance platform.
+  { at: 'entrance', hold: .5, position: [2.15, 2.6, 27.2], target: [2.15, 4.7, 19.4], fov: 50, note: 'pied de l’escalier' },
+  { at: .165, position: [2.15, 3.5, 23.6], target: [2.15, 5.0, 17.4], fov: 49, note: 'première volée' },
+  { at: .20, position: [2.15, 4.9, 20.2], target: [2.2, 5.2, 15.0], fov: 50, note: 'seconde volée' },
+  { at: .228, position: [2.3, 5.35, 15.6], target: [2.15, 5.2, 12.8], fov: 54, note: 'porte d’entrée' },
 
   // 03 — HALL D’ACCUEIL. Through the doorway, past the entrance pier, onto the counter.
   { at: .24, position: [0.3, 5.38, 13.4], target: [-3.0, 5.0, 13.6], fov: 56, note: 'franchissement' },
