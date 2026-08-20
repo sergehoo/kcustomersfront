@@ -1,5 +1,6 @@
 import { ArrowUpRight, ChevronUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { KaydanLogo } from '../components/brand/KaydanLogo'
 import { EXPERIENCE_SECTIONS } from './sections'
 
 /** Capability shortcuts, minus the hero which has no page of its own. */
@@ -38,7 +39,7 @@ export function ExperienceOutro({ reveal, onRestart }: { reveal: number; onResta
     </div>
 
     <div className="outro-footer">
-      <span>KAYDAN — CUSTOMER CARE</span>
+      <KaydanLogo compact />
       <p>Les coordonnées directes de votre agence sont publiées sur la page contact.</p>
       <button type="button" onClick={onRestart} className="outro-restart">
         <ChevronUp size={15} aria-hidden="true" />Revoir la visite

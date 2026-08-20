@@ -1,6 +1,7 @@
 import { CalendarDays, Menu, X } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useState, type MouseEvent } from 'react'
+import { KaydanLogo } from '../brand/KaydanLogo'
 import type { ExperienceSectionId } from '../../experience/sections'
 
 /**
@@ -53,7 +54,7 @@ export function SiteHeader({ onExperienceNavigate, activeScene }: {
   }
 
   return <header className="site-header">
-    <Link to="/" className="brand" aria-label="KAYDAN Customer Care — accueil"><span>KAYDAN</span><small>CUSTOMER CARE</small></Link>
+    <Link to="/" className="brand" aria-label="KAYDAN Customer Care — accueil"><KaydanLogo /></Link>
 
     <nav className="desktop-nav" aria-label="Navigation principale">
       {LINKS.map((link) => <NavLink
