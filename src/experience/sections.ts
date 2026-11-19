@@ -10,8 +10,8 @@ export type ExperienceSectionId = RoomId | LegacySectionId
 
 const LEGACY: Record<LegacySectionId, RoomId> = { office: 'dining', client: 'living' }
 
-/** Capability page reachable from a section, or `null` when the section is purely spatial. */
-export type CapabilityId = 'appointment' | 'visitor' | 'verification' | 'complaint' | 'tracking' | 'contact' | 'client'
+/** A call to action that leads somewhere real — a page, or a published site. */
+export type SectionAction = { label: string; route: string; external?: boolean }
 
 type SectionSeed = {
   id: RoomId
@@ -19,159 +19,143 @@ type SectionSeed = {
   label: string
   /** Editorial kicker. The section number is prepended automatically — never hardcode it. */
   kicker: string
-  /** Says what is on screen; the KAYDAN service it hosts comes second. */
+  /** Says what the camera shows; the Kaydan business it carries comes with it. */
   title: string
+  /** Hero only: the strong line under the title. */
+  subtitle?: string
   description: string
-  route: string
-  cta: string
-  capability: CapabilityId | null
+  /** Only where a real destination exists — never a link to nowhere. */
+  action?: SectionAction
+  /** Hero only: the second call to action. */
+  secondary?: SectionAction
 }
 
 /**
- * Single source of truth for the visit. `number`, `ordinal`, `eyebrow` and the
- * `NN / TT` counter are all derived from the array order, and each room's
- * scroll anchor from the tour (tour.ts), so neither can drift.
+ * The portal, once it is open to the public. Until then « Accéder à MyKaydan »
+ * leads to the MyKaydan One page, which says honestly that it is coming.
+ */
+export const MYKAYDAN_PORTAL_URL: string | null = null
+export const MYKAYDAN_ACCESS: SectionAction = MYKAYDAN_PORTAL_URL
+  ? { label: 'Accéder à MyKaydan', route: MYKAYDAN_PORTAL_URL, external: true }
+  : { label: 'Accéder à MyKaydan', route: '/espace-client' }
+
+export const ARTEMIS_URL = 'https://artemisconstruction-ci.com/'
+
+/**
+ * The visit tells the Kaydan story in five acts over the rooms the camera
+ * already walks — the text follows the shots, never the other way round:
+ *   Découvrir (extérieur, entrée, hall) → Construire (escalier) →
+ *   Habiter (salon, salle à manger, cuisine, suite, salle de bain, chambre —
+ *   Kaydan Home Services) → Vivre (terrasse, piscine, jardin) →
+ *   Connecter (MyKaydan One).
+ * `number`, `ordinal`, `eyebrow` and the `NN / TT` counter are derived from
+ * the array order, and each room's scroll anchor from the tour (tour.ts).
  */
 const SECTION_SEEDS: SectionSeed[] = [
   {
     id: 'exterior',
     label: 'EXTÉRIEUR',
-    kicker: 'KAYDAN — DIGITAL CONCIERGE',
-    title: 'KAYDAN\nCUSTOMER CARE',
-    description: 'Votre relation avec KAYDAN, autrement. Une visite guidée de nos services, pièce par pièce.',
-    route: '/rendez-vous',
-    cta: 'Commencer la visite',
-    capability: null,
+    kicker: 'KAYDAN GROUPE',
+    title: 'Bienvenue sur\nMyKaydan',
+    subtitle: 'Votre portail d’accès à l’univers Kaydan.',
+    description: 'Découvrez autrement notre vision de l’immobilier, de la construction, de l’aménagement et des services qui accompagnent votre bien tout au long de son cycle de vie.',
+    // Starts the visit (ExperienceCopy moves the camera); the href is the deep
+    // link to the first room, for middle-click and no-JS.
+    action: { label: 'Découvrir l’expérience', route: '/?scene=entrance' },
+    secondary: MYKAYDAN_ACCESS,
   },
   {
     id: 'entrance',
     label: 'ENTRÉE',
-    kicker: 'ENTRÉE & ARRIVÉE',
-    title: 'UNE ARRIVÉE\nDANS L’AXE',
-    description: 'Un escalier droit, un porche lumineux, une porte pivotante en chêne. Prenez rendez-vous, nous vous attendons.',
-    route: '/rendez-vous',
-    cta: 'Prendre rendez-vous',
-    capability: 'appointment',
+    kicker: 'INGÉNIERIE ARCHITECTURALE',
+    title: 'Découvrez notre\ningénierie architecturale',
+    description: 'De la conception des volumes à l’expérience des espaces, Kaydan imagine des projets immobiliers pensés dans leurs moindres détails.',
+    action: { label: 'Rencontrer un conseiller', route: '/rendez-vous' },
   },
   {
     id: 'visitor',
-    label: 'HALL D’ACCUEIL',
-    kicker: 'HALL D’ACCUEIL',
-    title: 'VOTRE VISITE\nCOMMENCE ICI',
-    description: 'Une console en chêne, une œuvre, une plante : l’accueil se fait simple. Badge visiteur et QR Code sont gérés par KAYDAN Shield.',
-    route: '/visiteur',
-    cta: 'Programmer une visite',
-    capability: 'visitor',
+    label: 'HALL',
+    kicker: 'KAYDAN REAL ESTATE',
+    title: 'Imaginer des espaces\nqui créent de la valeur',
+    description: 'De la conception à la valorisation du patrimoine immobilier, Kaydan accompagne chaque projet avec une vision globale.',
   },
   {
     id: 'living',
     label: 'SALON',
-    kicker: 'SALON',
-    title: 'PRENDRE LE TEMPS\nDE VOUS ÉCOUTER',
-    description: 'Canapé bouclé, fauteuils lounge et feu ouvert face aux baies. Votre espace client vous accompagne au quotidien.',
-    route: '/espace-client',
-    cta: 'Espace client',
-    capability: 'client',
+    kicker: 'QUALITÉ DES RÉALISATIONS',
+    title: 'La qualité de\nnos réalisations',
+    description: 'Des espaces conçus pour durer, valoriser votre patrimoine et offrir une expérience de vie à la hauteur de vos attentes.',
   },
   {
     id: 'dining',
     label: 'SALLE À MANGER',
-    kicker: 'SALLE À MANGER',
-    title: 'AUTOUR\nD’UNE TABLE',
-    description: 'Une grande table sous une suspension linéaire, une œuvre sur la pierre. Chaque réclamation est instruite ainsi : ensemble.',
-    route: '/reclamation',
-    cta: 'Faire une réclamation',
-    capability: 'complaint',
+    kicker: 'KAYDAN HOME SERVICES',
+    title: 'Donnez vie\nà votre intérieur',
+    description: 'Mobilier, décoration, équipements et installation : un intérieur pensé jusque dans les moindres détails.',
   },
   {
     id: 'kitchen',
     label: 'CUISINE',
-    kicker: 'CUISINE',
-    title: 'LE SOIN\nDU DÉTAIL',
-    description: 'Un îlot noir et bois, des tabourets cuir, une robinetterie laiton. Vérifiez une visite en un instant.',
-    route: '/visiteur/verification',
-    cta: 'Vérifier une visite',
-    capability: 'verification',
+    kicker: 'DÉTAILS & MATÉRIAUX',
+    title: 'L’équipement\nintégré au projet',
+    description: 'Îlot, rangements, robinetterie : des matériaux choisis et une fonctionnalité pensée pour le quotidien.',
   },
   {
     id: 'circulation',
     label: 'ESCALIER',
-    kicker: 'ESCALIER & CIRCULATION',
-    title: 'D’UN ÉTAGE\nÀ L’AUTRE',
-    description: 'Des marches en chêne suspendues, un garde-corps en verre. Suivez le cheminement de votre dossier, étape par étape.',
-    route: '/suivi',
-    cta: 'Suivre une demande',
-    capability: 'tracking',
+    kicker: 'ARTEMIS CONSTRUCTION',
+    title: 'Notre savoir-faire\ndans la construction',
+    description: 'Une exigence portée dans l’exécution, les matériaux, les finitions et le rendu de chaque détail.',
+    action: { label: 'Découvrir Artemis', route: ARTEMIS_URL, external: true },
   },
   {
     id: 'suite',
     label: 'SUITE PARENTALE',
-    kicker: 'SUITE PARENTALE',
-    title: 'UN ESPACE INTIME\nPENSÉ POUR LE CONFORT',
-    description: 'Lit à tête capitonnée, chevets laiton, fauteuil de lecture. Des services personnalisés, avec le même soin.',
-    route: '/espace-client',
-    cta: 'Espace client',
-    capability: 'client',
+    kicker: 'CONFORT & QUALITÉ DE VIE',
+    title: 'Le confort jusque\ndans les détails',
+    description: 'Un espace intime pensé pour le repos : la lumière, les matières, le silence.',
   },
   {
     id: 'bathroom',
     label: 'SALLE DE BAIN',
-    kicker: 'SALLE DE BAIN',
-    title: 'MARBRE, LAITON\nET LUMIÈRE',
-    description: 'Baignoire îlot, douche à l’italienne, double vasque. Le détail fait la différence, chez vous comme chez nous.',
-    route: '/espace-client',
-    cta: 'Espace client',
-    capability: 'client',
+    kicker: 'FINITIONS',
+    title: 'Des finitions à la hauteur\nde l’architecture',
+    description: 'Marbre, laiton, baignoire îlot : chaque finition prolonge le projet.',
   },
   {
     id: 'bedroom',
     label: 'CHAMBRE',
-    kicker: 'CHAMBRE SECONDAIRE',
-    title: 'SIMPLE\nET ÉLÉGANTE',
-    description: 'Un lit, une œuvre, des voilages sur la baie. Chaque demande avance avec la même attention.',
-    route: '/suivi',
-    cta: 'Suivre une demande',
-    capability: 'tracking',
+    kicker: 'KAYDAN HOME SERVICES',
+    title: 'Un logement prêt\nà vivre',
+    description: 'Kaydan ne livre pas seulement un bâtiment : votre logement peut être équipé et installé avant la remise des clés.',
   },
   {
     id: 'terrace',
     label: 'TERRASSE',
-    kicker: 'TERRASSE',
-    title: 'VIVRE\nDEHORS',
-    description: 'Un salon en teck face à la piscine, la façade ouverte sur le séjour. La conversation continue dehors.',
-    route: '/contact',
-    cta: 'Nous contacter',
-    capability: 'contact',
+    kicker: 'ART DE VIVRE',
+    title: 'Vivre pleinement\nchaque espace',
+    description: 'Un salon extérieur face à l’eau, le séjour grand ouvert : la qualité de vie se prolonge dehors.',
   },
   {
     id: 'pool',
     label: 'PISCINE',
-    kicker: 'PISCINE',
-    title: 'L’EAU,\nLA VILLA, LE CIEL',
-    description: 'Le bassin, ses transats, la villa en arrière-plan. Nous restons à votre écoute.',
-    route: '/contact',
-    cta: 'Nous contacter',
-    capability: 'contact',
+    kicker: 'VALORISATION DU BIEN',
+    title: 'Un bien qui\nprend de la valeur',
+    description: 'Après la remise des clés, vous pouvez confier votre bien à Kaydan et suivre sa gestion locative depuis MyKaydan.',
   },
   {
     id: 'garden',
     label: 'JARDIN',
-    kicker: 'JARDIN',
-    title: 'UN PAYSAGE\nEN GRADINS',
-    description: 'Gradins plantés d’agaves, palmiers, pelouse et éclairage discret. Prenez rendez-vous pour une visite réelle.',
-    route: '/rendez-vous',
-    cta: 'Prendre rendez-vous',
-    capability: 'appointment',
+    kicker: 'ART DE VIVRE',
+    title: 'Un paysage pensé\navec l’architecture',
+    description: 'Gradins plantés, palmiers, éclairage : l’extérieur participe à la valeur du projet.',
   },
   {
     id: 'finale',
-    label: 'VUE FINALE',
-    kicker: 'KAYDAN',
-    title: 'NOUS SOMMES À\nVOTRE ÉCOUTE',
-    description: 'La villa, son jardin, sa piscine. La porte reste ouverte pour continuer la conversation.',
-    route: '/contact',
-    cta: 'Nous contacter',
-    capability: 'contact',
+    label: 'MYKAYDAN ONE',
+    kicker: 'MYKAYDAN ONE',
+    title: 'De la découverte\nà la gestion de votre bien',
+    description: 'Découvrir, réserver, suivre le chantier, payer, équiper, recevoir ses clés, confier son bien : un seul parcours, un seul compte.',
   },
 ]
 

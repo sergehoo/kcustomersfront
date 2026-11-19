@@ -1,32 +1,30 @@
 /**
- * The only brand artefact in the repository is `public/favicon.svg`: a gold house
- * glyph on an ink ground. There is no logo file and no brand guide, so the mark
- * is reproduced here as a component — same geometry, same two colours — and the
- * whole palette in `styles.css` is derived from it.
+ * The official KAYDAN GROUPE logo, served as extracted from the brand file
+ * (KG.pdf → public/brand/*.svg, paths untouched — only the artboard is
+ * cropped to the drawing). It is never redrawn in markup.
+ *
+ * - `kaydan-groupe-light.svg`: ivory type, official orange mark — dark grounds;
+ * - `kaydan-groupe.svg`: the original anthracite and orange — light grounds;
+ * - `kaydan-groupe-mono-light.svg`: all white, where colour would clash.
+ *
+ * MyKaydan is a product label set beside the logo, not part of it.
  */
-export function KaydanMark({ size = 34, className }: { size?: number; className?: string }) {
-  return <svg
-    width={size}
-    height={size}
-    viewBox="0 0 64 64"
-    className={className}
-    role="presentation"
-    aria-hidden="true"
-    focusable="false"
-  >
-    <rect width="64" height="64" rx="14" fill="var(--kd-mark-ground)" />
-    <path d="M14 48V25L32 11l18 14v23H38V31H26v17z" fill="var(--kd-mark-glyph)" />
-    <path d="M28 48V34h8v14" fill="var(--kd-mark-ground)" />
-  </svg>
+type Variant = 'light' | 'dark' | 'mono'
+
+const SOURCES: Record<Variant, string> = {
+  light: '/brand/kaydan-groupe-light.svg',
+  dark: '/brand/kaydan-groupe.svg',
+  mono: '/brand/kaydan-groupe-mono-light.svg',
 }
 
-/** Mark plus wordmark, used in the header, the outro and the sub-page shell. */
-export function KaydanLogo({ compact = false }: { compact?: boolean }) {
-  return <span className={`kd-logo ${compact ? 'kd-logo--compact' : ''}`}>
-    <KaydanMark size={compact ? 28 : 34} />
-    <span className="kd-logo-type">
-      <span className="kd-logo-name">KAYDAN</span>
-      <span className="kd-logo-sub">Customer Care</span>
-    </span>
+export function KaydanLogo({ variant = 'light', product = false, compact = false }: {
+  variant?: Variant
+  /** Adds the « MYKAYDAN » product label beside the logo. */
+  product?: boolean
+  compact?: boolean
+}) {
+  return <span className={`kd-brand ${compact ? 'kd-brand--compact' : ''}`}>
+    <img className="kd-brand-logo" src={SOURCES[variant]} alt="Kaydan Groupe" width={582} height={228} decoding="async" />
+    {product && <span className="kd-brand-product" aria-label="MyKaydan">MYKAYDAN</span>}
   </span>
 }

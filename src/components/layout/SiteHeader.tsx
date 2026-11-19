@@ -1,8 +1,8 @@
-import { CalendarDays, Menu, X } from 'lucide-react'
+import { ArrowUpRight, Menu, X } from 'lucide-react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useState, type MouseEvent } from 'react'
 import { KaydanLogo } from '../brand/KaydanLogo'
-import type { ExperienceSectionId } from '../../experience/sections'
+import { MYKAYDAN_ACCESS, type ExperienceSectionId } from '../../experience/sections'
 
 /**
  * Two kinds of destination, kept explicitly apart:
@@ -15,14 +15,19 @@ type HeaderLink =
   | { label: string; type: 'scene'; scene: ExperienceSectionId }
   | { label: string; type: 'route'; route: string; scene?: ExperienceSectionId }
 
+/**
+ * The site's own pages and the rooms of the visit that carry each part of the
+ * Kaydan story: the business lines are told in the house itself (Real Estate
+ * in the hall, Artemis on the stair, Home Services among the furniture), and
+ * MyKaydan One at the end of the visit.
+ */
 const LINKS: HeaderLink[] = [
   { label: 'Accueil', type: 'scene', scene: 'exterior' },
-  { label: 'La visite', type: 'scene', scene: 'entrance' },
-  { label: 'Visiteur', type: 'route', route: '/visiteur', scene: 'visitor' },
-  { label: 'Réclamation', type: 'route', route: '/reclamation', scene: 'office' },
-  { label: 'Suivi', type: 'route', route: '/suivi', scene: 'circulation' },
-  { label: 'Espace client', type: 'route', route: '/espace-client', scene: 'client' },
-  { label: 'Contact', type: 'route', route: '/contact', scene: 'terrace' },
+  { label: 'L’expérience', type: 'scene', scene: 'entrance' },
+  { label: 'Nos métiers', type: 'scene', scene: 'visitor' },
+  { label: 'Home Services', type: 'scene', scene: 'dining' },
+  { label: 'MyKaydan One', type: 'scene', scene: 'finale' },
+  { label: 'Contact', type: 'route', route: '/contact' },
 ]
 
 export const SCENE_QUERY_KEY = 'scene'
@@ -54,7 +59,7 @@ export function SiteHeader({ onExperienceNavigate, activeScene }: {
   }
 
   return <header className="site-header">
-    <Link to="/" className="brand" aria-label="KAYDAN Customer Care — accueil"><KaydanLogo /></Link>
+    <Link to="/" className="brand" aria-label="MyKaydan par Kaydan Groupe — accueil"><KaydanLogo product /></Link>
 
     <nav className="desktop-nav" aria-label="Navigation principale">
       {LINKS.map((link) => <NavLink
@@ -66,10 +71,11 @@ export function SiteHeader({ onExperienceNavigate, activeScene }: {
       >{link.label}</NavLink>)}
     </nav>
 
-    {/* Always a real navigation: booking is a page, never a camera move. */}
-    <Link className="header-cta" to="/rendez-vous" onClick={() => setOpen(false)}>
-      Prendre rendez-vous <CalendarDays size={16} strokeWidth={1.5} />
-    </Link>
+    {/* Always a real navigation, never a camera move: the portal once it is
+        public, the MyKaydan One page until then. */}
+    {MYKAYDAN_ACCESS.external
+      ? <a className="header-cta" href={MYKAYDAN_ACCESS.route}>{MYKAYDAN_ACCESS.label} <ArrowUpRight size={16} strokeWidth={1.5} /></a>
+      : <Link className="header-cta" to={MYKAYDAN_ACCESS.route} onClick={() => setOpen(false)}>{MYKAYDAN_ACCESS.label} <ArrowUpRight size={16} strokeWidth={1.5} /></Link>}
 
     <button className="menu-toggle" onClick={() => setOpen(!open)} aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={open}>
       {open ? <X /> : <Menu />}
@@ -84,7 +90,9 @@ export function SiteHeader({ onExperienceNavigate, activeScene }: {
         onClick={(event) => onClick(event, link)}
         className={isActive(link) ? 'active' : ''}
       >{link.label}</NavLink>)}
-      <Link to="/rendez-vous" onClick={() => setOpen(false)}>Prendre rendez-vous</Link>
+      {MYKAYDAN_ACCESS.external
+        ? <a href={MYKAYDAN_ACCESS.route}>{MYKAYDAN_ACCESS.label}</a>
+        : <Link to={MYKAYDAN_ACCESS.route} onClick={() => setOpen(false)}>{MYKAYDAN_ACCESS.label}</Link>}
     </nav>
   </header>
 }

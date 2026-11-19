@@ -1,21 +1,38 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { ArrowUpRight, ChevronDown } from 'lucide-react'
+import { ArrowDown, ArrowUpRight, ChevronDown } from 'lucide-react'
 import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { NeutralToneMapping } from 'three'
 import { SiteHeader } from '../components/layout/SiteHeader'
 import { ExperienceOutro } from './ExperienceOutro'
 import { Scene } from './Scene'
-import { EXPERIENCE_SECTIONS, OUTRO_PROGRESS, SECTION_COUNT, SECTION_TOTAL, type ExperienceSection, type ExperienceSectionId } from './sections'
+import { EXPERIENCE_SECTIONS, OUTRO_PROGRESS, SECTION_COUNT, SECTION_TOTAL, type ExperienceSection, type ExperienceSectionId, type SectionAction } from './sections'
 import { useExperienceScroll } from './useExperienceScroll'
 import { useAmbienceControl } from './ambience'
 import { AmbienceToggle } from './AmbienceToggle'
-import { TOUR_SCROLL_VH } from './tour'
+import { TOUR_SCROLL_VH, TOUR_STOPS } from './tour'
+import { SHOT_CAPTIONS } from './captions'
+import { KaydanLogo } from '../components/brand/KaydanLogo'
 
 const StaticFallback = lazy(() => import('./StaticFallback'))
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+
+const HERO_HOLD_END = TOUR_STOPS.find((stop) => stop.shot !== null)!.leave
+
+/** A page of the site, or a published site in a new tab. */
+function ActionLink({ action, className, style, tabIndex, onClick, children }: {
+  action: SectionAction
+  className: string
+  style?: CSSProperties
+  tabIndex?: number
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void
+  children: React.ReactNode
+}) {
+  if (action.external) return <a href={action.route} target="_blank" rel="noreferrer" className={className} style={style} tabIndex={tabIndex}>{children}</a>
+  return <Link to={action.route} className={className} style={style} tabIndex={tabIndex} onClick={onClick}>{children}</Link>
+}
 
 function isWebGLAvailable() {
   try {
@@ -36,14 +53,25 @@ function sectionVisibility(progress: number, section: ExperienceSection, index: 
   const local = clamp01((progress - section.progress) / span)
   const enter = clamp01(local / .1)
   const leave = clamp01((1 - local) / .18)
-  // The hero owns the very first screen, so it fades on its own schedule.
-  const visible = index === 0 ? clamp01(1 - progress / .105) : Math.min(enter, leave)
+  // The hero owns the very first screen: it fades as the camera leaves the
+  // hero shot, before the façade shot of the same room.
+  const visible = index === 0 ? clamp01(1 - (progress - HERO_HOLD_END) / .012) : Math.min(enter, leave)
   return { enter: index === 0 ? 1 : enter, visible }
 }
 
-function ExperienceCopy({ progress, section, index }: { progress: number; section: ExperienceSection; index: number }) {
+function ExperienceCopy({ progress, section, index, moveTo }: {
+  progress: number
+  section: ExperienceSection
+  index: number
+  moveTo: (id: ExperienceSectionId) => void
+}) {
   const { enter, visible } = sectionVisibility(progress, section, index)
   const lines = section.title.split('\n')
+  // The hero's call to action starts the visit — it used to open /rendez-vous
+  // while reading "Commencer la visite". Its href stays a real deep link for
+  // middle-click and no-JS; a plain click moves the camera instead.
+  const startsVisit = index === 0
+  const nextRoom = EXPERIENCE_SECTIONS[1].id
   return <section
     className={`experience-copy ${index === 0 ? 'experience-copy--hero' : ''}`}
     aria-live="polite"
@@ -59,11 +87,40 @@ function ExperienceCopy({ progress, section, index }: { progress: number; sectio
         </span>
       })}
     </h1>
+    {section.subtitle && <p className="copy-subtitle" style={{ opacity: clamp01((enter - .22) / .5) }}>{section.subtitle}</p>}
     <p className="copy-body" style={{ opacity: clamp01((enter - .3) / .6) }}>{section.description}</p>
-    <Link to={section.route} className="primary-link" style={{ opacity: clamp01((enter - .42) / .5) }} tabIndex={visible > .5 ? 0 : -1}>
-      {section.cta}<ArrowUpRight size={17} />
-    </Link>
+    {(section.action || section.secondary) && <div className="copy-actions" style={{ opacity: clamp01((enter - .42) / .5) }}>
+      {section.action && <ActionLink
+        action={section.action}
+        className="primary-link"
+        tabIndex={visible > .5 ? 0 : -1}
+        onClick={startsVisit ? (event) => { event.preventDefault(); moveTo(nextRoom) } : undefined}
+      >
+        {section.action.label}{startsVisit ? <ArrowDown size={17} /> : <ArrowUpRight size={17} />}
+      </ActionLink>}
+      {section.secondary && <ActionLink action={section.secondary} className="ghost-link" tabIndex={visible > .5 ? 0 : -1}>
+        {section.secondary.label}<ArrowUpRight size={16} />
+      </ActionLink>}
+    </div>}
   </section>
+}
+
+/**
+ * A line on some focus shots, held with the shot: it reveals as the camera
+ * settles and is gone before it moves on, so it never travels over a room.
+ */
+function ShotCaption({ progress }: { progress: number }) {
+  const stop = TOUR_STOPS.find((item) => item.shot && progress >= item.arrive && progress <= item.leave && SHOT_CAPTIONS[`${item.room}/${item.shot}`])
+  if (!stop) return null
+  const caption = SHOT_CAPTIONS[`${stop.room}/${stop.shot}`]
+  const local = (progress - stop.arrive) / Math.max(1e-6, stop.leave - stop.arrive)
+  const reveal = clamp01(local / .22) * clamp01((1 - local) / .18)
+  return <aside className="shot-caption" aria-live="polite" style={{ opacity: reveal }}>
+    <span className="shot-caption-rule" style={{ transform: `scaleX(${reveal})` }} aria-hidden="true" />
+    {caption.eyebrow && <p className="shot-caption-eyebrow">{caption.eyebrow}</p>}
+    {caption.text && <p className="shot-caption-text"><span style={{ clipPath: `inset(0 ${(1 - reveal) * 100}% 0 0)` }}>{caption.text}</span></p>}
+    {caption.steps && <ol className="shot-caption-steps">{caption.steps.map((step, index) => <li key={step} style={{ opacity: clamp01(reveal * 1.6 - index * .18) }}>{step}</li>)}</ol>}
+  </aside>
 }
 
 function ExperienceOverlay({ progress, section, moveTo, moveToProgress }: {
@@ -91,10 +148,11 @@ function ExperienceOverlay({ progress, section, moveTo, moveToProgress }: {
         <small>{section.label}</small>
       </aside>
 
-      <ExperienceCopy progress={progress} section={section} index={index} />
+      <ExperienceCopy progress={progress} section={section} index={index} moveTo={moveTo} />
+      <ShotCaption progress={progress} />
 
       <aside className="experience-spec" aria-label="Espace actuel">
-        <span>PARCOURS KAYDAN</span>
+        <span>L’EXPÉRIENCE MYKAYDAN</span>
         <div><strong>{section.label}</strong><small>{section.ordinal} / {SECTION_TOTAL}</small></div>
       </aside>
 
@@ -103,7 +161,7 @@ function ExperienceOverlay({ progress, section, moveTo, moveToProgress }: {
         onClick={() => (index === SECTION_COUNT - 1 ? moveToProgress(1) : moveTo(nextSection.id))}
         aria-label={index === SECTION_COUNT - 1 ? 'Aller à la fin de la visite' : `Aller à ${nextSection.label}`}
       >
-        <ChevronDown size={20} /><span>{index === 0 ? 'Visiter' : 'Continuer'}</span>
+        <ChevronDown size={20} /><span>{index === 0 ? 'Découvrir' : 'Continuer'}</span>
       </button>
 
       <nav className="experience-dots" aria-label="Pièces de la visite">
@@ -161,9 +219,9 @@ export function CustomerCareExperience() {
   // The scroll length grows with the tour: every shot and every move has its share.
   return <div className="experience-page" style={{ '--kd-visit-length': `${TOUR_SCROLL_VH}vh` } as CSSProperties}>
     {!dismissed && <div className="experience-loader" role="status" aria-live="polite">
-      <span>KAYDAN</span>
+      <KaydanLogo />
       <i style={{ transform: `scaleX(${Math.max(.03, assetsProgress / 100)})` }} />
-      <small>{assetsProgress < 100 ? `ENTRÉE… ${Math.round(assetsProgress)}%` : 'ENTRÉE…'}</small>
+      <small>{assetsProgress < 100 ? `MYKAYDAN… ${Math.round(assetsProgress)}%` : 'MYKAYDAN…'}</small>
     </div>}
 
     <div className="experience-stage" aria-hidden="true">

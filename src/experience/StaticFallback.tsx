@@ -1,1 +1,1 @@
-export default function StaticFallback() { return <div className="webgl-fallback"><div className="fallback-house"><span /><span /><span /></div><p>Votre expérience KAYDAN reste accessible sans WebGL.</p></div> }
+export default function StaticFallback() { return <div className="webgl-fallback"><img className="kd-brand-logo" src="/brand/kaydan-groupe-light.svg" alt="Kaydan Groupe" width={582} height={228} /><p>Bienvenue sur MyKaydan. La visite 3D demande WebGL&nbsp;: les pages de nos services restent accessibles depuis le menu.</p></div> }
