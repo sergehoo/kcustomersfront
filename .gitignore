@@ -12,3 +12,4 @@ audit/
 # Sources 3D non servies : export Blender, modèles inutilisés, références look-dev.
 # Régénérer les variantes servies avec `npm run optimize:production`.
 assets-source/
+assets-source/
