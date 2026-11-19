@@ -45,15 +45,16 @@ const LAMPS = [
  * downlight on the entrance door under its canopy.
  */
 const FACADE_LIGHTS = [
-  { position: [1.3, 3.9, 17.0] as const, target: [1.6, 9.2, 15.6] as const, color: '#ffd7a4', intensity: 18, angle: .42, distance: 14 },
-  { position: [3.0, 3.9, 17.0] as const, target: [3.0, 9.4, 15.6] as const, color: '#ffd9a8', intensity: 14, angle: .42, distance: 14 },
-  { position: [5.5, 6.55, 16.55] as const, target: [5.5, 3.8, 16.0] as const, color: '#ffdcb0', intensity: 16, angle: .62, distance: 9 },
+  { position: [1.1, 3.9, 17.9] as const, target: [1.0, 9.2, 17.3] as const, color: '#ffd7a4', intensity: 18, angle: .42, distance: 14 },
+  // Downlight from the porch soffit onto the pivot door, on the axis.
+  { position: [4.225, 6.72, 17.1] as const, target: [4.225, 3.8, 16.45] as const, color: '#ffdcb0', intensity: 16, angle: .62, distance: 9 },
+  { position: [-1.2, 6.7, 17.7] as const, target: [-1.2, 3.8, 18.6] as const, color: '#ffd9a8', intensity: 10, angle: .7, distance: 8 },
   { position: [-6.2, 3.9, 17.4] as const, target: [-6.2, 9.0, 16.2] as const, color: '#ffd9a8', intensity: 16, angle: .48, distance: 14 },
-  { position: [8.6, 3.9, 16.4] as const, target: [8.6, 9.0, 15.7] as const, color: '#ffd9a8', intensity: 14, angle: .45, distance: 13 },
+  { position: [6.6, 3.9, 18.5] as const, target: [6.6, 8.2, 18.0] as const, color: '#ffd9a8', intensity: 12, angle: .4, distance: 10 },
 ]
 
-/** Down the main stair (x 7.3), matching the LED strips under the nosings. */
-const STEP_LIGHTS = [[7.3, 1.45, 24.6] as const, [7.3, 2.65, 22.4] as const, [7.3, 3.7, 19.6] as const]
+/** Down the main stair, on its axis (x 4.225), with the LED strips under the nosings. */
+const STEP_LIGHTS = [[4.225, 1.5, 24.7] as const, [4.225, 2.75, 22.46] as const, [4.225, 4.25, 18.8] as const]
 
 /** Underwater pool light: turquoise bounce on the south terrace at night. */
 const POOL_LIGHT = { position: [2.4, 3.1, .4] as const, color: '#58d2e4', intensity: 26, distance: 11 }

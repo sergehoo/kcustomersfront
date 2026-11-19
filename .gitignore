@@ -4,7 +4,10 @@ dist
 .DS_Store
 
 # Sources 3D lourdes (non versionnées : régénérables via npm run optimize:production)
-blender/
+blender/*
+# The Blender build scripts are the source of the served GLB: versioned, light.
+!blender/scripts/
+!blender/README.md
 audit/
 *.blend
 *.blend1

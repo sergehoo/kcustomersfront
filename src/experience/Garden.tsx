@@ -151,25 +151,28 @@ type Zone = {
 const PLANTABLE = /^(KAYDAN_SOIL|KAYDAN_LAWN|Ground003|KD_SURROUNDING_LAND)$/
 
 const ZONES: Zone[] = [
+  // The two tiers either side of the main stair (restructure_front.py): grasses
+  // as the base layer, agaves in rhythm, so the planting follows the
+  // architecture instead of hiding it.
+  { minX: -1.45, maxX: 2.6, minZ: 19.5, maxZ: 21.5, count: 16, mix: [['grass', .65], ['agave', .35]], seed: 11 },
+  { minX: 5.85, maxX: 10.3, minZ: 19.5, maxZ: 21.5, count: 18, mix: [['grass', .65], ['agave', .35]], seed: 12 },
+  { minX: -1.45, maxX: 2.6, minZ: 22.05, maxZ: 25.15, count: 18, mix: [['grass', .6], ['agave', .25], ['topiary', .15]], seed: 13 },
+  { minX: 5.85, maxX: 10.3, minZ: 22.05, maxZ: 25.15, count: 20, mix: [['grass', .6], ['agave', .25], ['topiary', .15]], seed: 14 },
+  // Planted strip between the driveway and the parvis.
+  { minX: -2.18, maxX: -2.0, minZ: 25.9, maxZ: 32.1, count: 10, mix: [['grass', 1]], seed: 15 },
   // Along the east walk to the terrace.
-  { minX: 6.35, maxX: 7.15, minZ: 7.5, maxZ: 17.3, count: 16, mix: [['grass', 1]], seed: 2 },
-  // Raised beds either side of the forecourt.
-  { minX: 10.3, maxX: 14.3, minZ: 18.5, maxZ: 21.7, count: 22, mix: [['grass', .55], ['agave', .3], ['topiary', .15]], seed: 3 },
-  { minX: -13.2, maxX: -2.9, minZ: 18.5, maxZ: 21.7, count: 34, mix: [['grass', .55], ['agave', .2], ['topiary', .25]], seed: 4 },
-  // The bank between the driveway and the main stair.
-  { minX: -1.8, maxX: 5.2, minZ: 18.8, maxZ: 25.2, count: 46, mix: [['grass', .75], ['agave', .25]], seed: 5 },
-  // East slope beside the stair — kept clear of the hero camera (12.4, 3.5, 30.5).
-  { minX: 9.4, maxX: 15, minZ: 22.5, maxZ: 26.5, count: 18, mix: [['grass', .6], ['agave', .4]], seed: 6 },
-  // The stepped stone terraces on both flanks read as a second, competing
-  // stair from the road: planted, they become cascading beds.
-  { minX: 10.3, maxX: 14.3, minZ: 18.2, maxZ: 24.4, count: 26, mix: [['grass', .7], ['agave', .3]], seed: 8, caps: true },
-  { minX: -13.6, maxX: -9.2, minZ: 18.2, maxZ: 24.4, count: 24, mix: [['grass', .7], ['agave', .3]], seed: 9, caps: true },
-  // Lawns: a few clipped spheres only.
-  { minX: -11.6, maxX: -3.6, minZ: 24.4, maxZ: 29.6, count: 7, mix: [['topiary', 1]], seed: 7 },
+  { minX: 6.35, maxX: 7.15, minZ: 7.5, maxZ: 15.4, count: 12, mix: [['grass', 1]], seed: 2 },
+  // Bed over the carport, west.
+  { minX: -13.2, maxX: -2.9, minZ: 18.5, maxZ: 21.7, count: 30, mix: [['grass', .55], ['agave', .2], ['topiary', .25]], seed: 4 },
+  // East bank above the retaining wall.
+  { minX: 10.95, maxX: 15, minZ: 18.6, maxZ: 31, count: 34, mix: [['grass', .6], ['agave', .4]], seed: 6 },
+  // West lawn: clipped spheres only.
+  { minX: -12.7, maxX: -8.0, minZ: 23, maxZ: 32.2, count: 7, mix: [['topiary', 1]], seed: 7 },
 ]
 
 /** Hand-placed palms framing the stair and the door. */
-const PALMS: [number, number, number][] = [[-3.6, 20.2, 3.3], [-9.6, 19.6, 3.6]]
+/** A pair at the outer ends of the upper tier, clear of the door axis, and one on the west lawn. */
+const PALMS: [number, number, number][] = [[-1.05, 20.5, 4.1], [9.6, 20.5, 4.1], [-10.6, 27.6, 3.9]]
 
 export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambience }) {
   const scene = useThree((state) => state.scene)

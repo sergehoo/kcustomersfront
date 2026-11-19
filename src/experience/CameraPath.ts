@@ -31,23 +31,22 @@ type Keyframe = {
  */
 
 const KEYFRAMES: Keyframe[] = [
-  // 01 — EXTÉRIEUR. Hero from inside the gate: road, forecourt, driveway, car and
-  // garage on the left; the pedestrian stair climbing the east flank on the right;
-  // the recessed front door under its canopy in the middle. Both circulations read
-  // at a glance and neither blocks the other.
-  { at: 'exterior', hold: .45, position: [12.4, 3.5, 30.5], target: [-2.2, 4.9, 19.0], fov: 56, note: 'hero — accès lisibles' },
-  { at: .075, position: [10.6, 3.2, 28.0], target: [-1.0, 4.9, 19.0], fov: 54 },
+  // 01 — EXTÉRIEUR. Hero from the east corner of the parvis: the whole façade,
+  // the stair rising on the door's axis between its planted tiers, the
+  // driveway and carport on the west, palms framing the ends, the sky above.
+  // Kept at z ≤ 31.7 so the mobile path (pulled back 0.8 m) stays inside the fence.
+  { at: 'exterior', hold: .45, position: [10.0, 2.75, 31.7], target: [1.4, 5.6, 17.0], fov: 54, note: 'hero — façade, escalier dans l’axe, accès voiture' },
+  { at: .075, position: [8.6, 2.6, 31.4], target: [2.2, 5.3, 16.8], fov: 52 },
 
-  // 02 — ENTRÉE. Up the east flight (x 7.3, the only axis with a clear run to the
-  // villa's own terrace), onto the landing, then a turn towards the door.
-  // The stair now ends on the front door (realism/entrance): every shot of the
-  // climb keeps the oak door under its canopy at the end of the axis.
-  { at: 'entrance', hold: .5, position: [7.3, 2.5, 28.2], target: [6.3, 4.6, 16.2], fov: 50, note: 'pied de l’escalier, porte dans l’axe' },
-  { at: .16, position: [7.3, 3.4, 24.6], target: [6.0, 4.9, 16.0], fov: 50, note: 'première volée' },
-  { at: .195, position: [7.2, 4.9, 21.2], target: [5.7, 5.0, 15.8], fov: 52, note: 'seconde volée' },
-  { at: .218, position: [5.6, 5.4, 19.7], target: [5.5, 5.0, 15.8], fov: 56, note: 'palier, face à la porte d’entrée' },
+  // 02 — ENTRÉE. The restructured approach (blender/scripts/restructure_front.py) is one
+  // axis, x 4.225: parvis, stair in two flights, landing, pivot door. The
+  // climb stays on it, so the door is always at the end of the frame.
+  { at: 'entrance', hold: .5, position: [4.225, 2.35, 31.6], target: [4.225, 4.7, 16.3], fov: 50, note: 'parvis, porte dans l’axe' },
+  { at: .16, position: [4.225, 2.45, 27.4], target: [4.225, 4.85, 16.3], fov: 50, note: 'pied de l’escalier' },
+  { at: .195, position: [4.225, 3.85, 22.6], target: [4.225, 5.0, 16.3], fov: 52, note: 'palier intermédiaire' },
+  { at: .218, position: [4.225, 5.4, 19.9], target: [4.225, 5.05, 16.2], fov: 56, note: 'palier, face à la porte d’entrée' },
   // Round the east side of the porch column before turning down the east walk.
-  { at: .227, position: [8.3, 5.45, 18.5], target: [8.3, 5.0, 14.0], fov: 54, note: 'contournement du poteau' },
+  { at: .227, position: [8.3, 5.45, 18.7], target: [8.3, 5.0, 14.0], fov: 54, note: 'contournement du poteau' },
   // The recessed door is presented from the landing, but it is not the way in:
   // raycasting shows solid plaster behind it on every axis. The visit continues
   // along the east flank of the terrace and enters through the south sliding bay

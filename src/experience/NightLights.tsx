@@ -1,4 +1,3 @@
-import { useThree } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useState } from 'react'
 import {
   AdditiveBlending, CanvasTexture, InstancedMesh, Matrix4, MeshBasicMaterial, PlaneGeometry, Quaternion, SRGBColorSpace, Vector3,
@@ -27,17 +26,44 @@ type Decal = {
 }
 
 const DECALS: Decal[] = [
-  // Grazing uplight on the limestone tower (front face measured at z 17.32).
+  // Grazing uplight on the limestone tower (front face at z 17.32).
   { position: [.85, 6.5, 17.34], normal: [0, 0, 1], size: [1.7, 5.6], kind: 'scallop', color: '#ffc98c', strength: .95 },
-  // Washes up the white render, as on the reference.
-  { position: [3.3, 6.0, 16.24], normal: [0, 0, 1], size: [1.4, 4.4], kind: 'scallop', color: '#ffd29e', strength: .8 },
-  { position: [6.7, 5.7, 18.04], normal: [0, 0, 1], size: [.8, 3.8], kind: 'scallop', color: '#ffd29e', strength: .8 },
-  { position: [-7.6, 6.1, 16.24], normal: [0, 0, 1], size: [1.5, 4.6], kind: 'scallop', color: '#ffd29e', strength: .8 },
-  { position: [-2.55, 6.1, 16.98], normal: [0, 0, 1], size: [1.2, 4.4], kind: 'scallop', color: '#ffd29e', strength: .65 },
-  // Downlight from the canopy onto the oak door, and its pool on the landing.
-  { position: [5.51, 5.0, 15.86], normal: [0, 0, 1], size: [1.9, 2.9], kind: 'downlight', color: '#ffd7a6', strength: 1 },
-  { position: [5.51, 3.81, 16.9], normal: [0, 1, 0], size: [2.6, 2.2], kind: 'pool', color: '#ffd3a0', strength: .7 },
+  // Uplight on the porch column east of the door.
+  { position: [6.58, 5.3, 18.04], normal: [0, 0, 1], size: [.75, 3.0], kind: 'scallop', color: '#ffd29e', strength: .8 },
+  // West wing wash.
+  { position: [-7.6, 6.1, 16.24], normal: [0, 0, 1], size: [1.5, 4.6], kind: 'scallop', color: '#ffd29e', strength: .75 },
+  // Downlight from the porch soffit onto the pivot door, and its pool on the landing.
+  { position: [4.225, 5.15, 16.34], normal: [0, 0, 1], size: [2.0, 2.8], kind: 'downlight', color: '#ffd7a6', strength: 1 },
+  { position: [4.225, 3.815, 17.35], normal: [0, 1, 0], size: [3.6, 2.4], kind: 'pool', color: '#ffd3a0', strength: .7 },
 ]
+
+/**
+ * The main stair as built by `blender/scripts/restructure_front.py`: each LED
+ * strip under a nosing washes the riser below it.
+ */
+const STAIR = { axis: 4.225, width: 2.4, top: 3.8, foot: .7, landingFront: 19.1, going: .32, midLanding: 1.6 }
+
+function riserGlows() {
+  const riser = (STAIR.top - STAIR.foot) / 18
+  const matrices: Matrix4[] = []
+  const flights = [
+    { top: STAIR.top, start: STAIR.landingFront },
+    { top: STAIR.top - 9 * riser, start: STAIR.landingFront + 8 * STAIR.going + STAIR.midLanding },
+  ]
+  for (const flight of flights) {
+    for (let k = 1; k <= 8; k += 1) {
+      const yTop = flight.top - k * riser
+      const front = flight.start + k * STAIR.going
+      const height = riser - .06
+      matrices.push(new Matrix4().compose(
+        new Vector3(STAIR.axis, yTop - .06 - height / 2, front - .026),
+        new Quaternion(),
+        new Vector3(STAIR.width - .24, height, 1),
+      ))
+    }
+  }
+  return matrices
+}
 
 function canvasTexture(draw: (context: CanvasRenderingContext2D, width: number, height: number) => void, width: number, height: number) {
   const canvas = document.createElement('canvas')
@@ -116,7 +142,6 @@ function decalMaterial(map: CanvasTexture, color: string, strength: number) {
 }
 
 export function NightLights({ ambience }: { ambience: Ambience }) {
-  const scene = useThree((state) => state.scene)
   const [risers, setRisers] = useState<InstancedMesh | null>(null)
   const textures = useMemo(() => ({ scallop: scallop(), downlight: downlight(), pool: pool(), riser: riser() }), [])
   const plane = useMemo(() => new PlaneGeometry(1, 1), [])
@@ -127,27 +152,17 @@ export function NightLights({ ambience }: { ambience: Ambience }) {
     return { decal, material, rotation }
   }), [textures])
 
-  // Riser glows follow the LED strips built in ExteriorVilla (realism/entrance).
+  // Riser glows under the LED strips of the main stair.
   useLayoutEffect(() => {
-    const leds = scene.getObjectByName('KD_STAIR_LEDS')
-    if (!(leds instanceof InstancedMesh)) return
+    const matrices = riserGlows()
     const material = decalMaterial(textures.riser, '#ffc985', 1.1)
-    const mesh = new InstancedMesh(plane, material, leds.count)
-    const matrix = new Matrix4(), position = new Vector3(), rotation = new Quaternion(), scale = new Vector3()
-    for (let index = 0; index < leds.count; index += 1) {
-      leds.getMatrixAt(index, matrix)
-      matrix.decompose(position, rotation, scale)
-      mesh.setMatrixAt(index, new Matrix4().compose(
-        new Vector3(position.x, position.y - .1, position.z + .004),
-        new Quaternion(),
-        new Vector3(scale.x, .2, 1),
-      ))
-    }
+    const mesh = new InstancedMesh(plane, material, matrices.length)
+    matrices.forEach((matrix, index) => mesh.setMatrixAt(index, matrix))
     mesh.name = 'KD night riser glow'
     mesh.frustumCulled = false
     setRisers(mesh)
     return () => { material.dispose() }
-  }, [scene, plane, textures])
+  }, [plane, textures])
 
   const visible = ambience.decals > 0
   for (const { material, decal } of decals) material.opacity = ambience.decals * Math.min(1, decal.strength + .2)
