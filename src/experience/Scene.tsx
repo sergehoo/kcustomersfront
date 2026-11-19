@@ -62,11 +62,11 @@ export function Scene({ progress, mobile, debug3d, onReady, ambience }: { progre
     <DaylightSky progress={progress} mobile={mobile} degraded={degraded} ambience={ambience} />
     <CameraRig progress={progress} mobile={mobile} exposure={ambience.exposure} />
     <Lighting progress={progress} mobile={mobile} ambience={ambience} />
-    <ExteriorVilla mobile={mobile} ambience={ambience} />
+    <ExteriorVilla mobile={mobile} ambience={ambience} progress={progress} />
     <Surroundings model={villaModel(mobile)} />
     <Garden mobile={mobile} ambience={ambience} />
     <NightLights ambience={ambience} />
-    <PostEffects mobile={mobile} bloom={ambience.bloom} />
+    <PostEffects mobile={mobile} progress={progress} bloom={ambience.bloom} />
     {debug3d && <Debug3D progress={progress} mobile={mobile} />}
     <Warmup onReady={onReady} />
   </Suspense>

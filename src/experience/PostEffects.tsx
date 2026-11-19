@@ -1,7 +1,9 @@
 import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
+import { useFrame } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import { HalfFloatType } from 'three'
+import { HalfFloatType, MathUtils } from 'three'
+import { insideAt } from './interior'
 
 /**
  * Photographic finishing, in the order a camera would apply it.
@@ -16,15 +18,36 @@ import { HalfFloatType } from 'three'
  * - A whisper of bloom on genuine highlights (sun glints, lamp lenses) and a
  *   lens vignette. No grain, no chromatic aberration: premium, not stylised.
  */
-export function PostEffects({ mobile, bloom = .32 }: { mobile: boolean; bloom?: number }) {
+// Occlusion at the scale of each space. Outside, a 2 m radius grounds the
+// façade, the stair and the planters seen from 15–30 m. Indoors every wall,
+// ceiling and piece of furniture is within 2 m of the lens, so the same pass
+// laid soft grey-black patches over whole walls and ceilings — the smoky veil
+// of the hall and the suite. Indoors it only marks contact: corners, feet,
+// cushions. Radius, intensity and falloff are uniforms: no shader rebuild.
+const AO_OUTSIDE = { desktop: { aoRadius: 2, intensity: 3.4 }, mobile: { aoRadius: 1.6, intensity: 2.6 }, distanceFalloff: 1.2 }
+const AO_INSIDE = { aoRadius: .6, intensity: 1.8, distanceFalloff: 1 }
+
+type AOConfiguration = { transparencyAware: boolean; aoRadius: number; intensity: number; distanceFalloff: number }
+
+export function PostEffects({ mobile, progress, bloom = .32 }: { mobile: boolean; progress: number; bloom?: number }) {
   // n8ao ships no types.
-  const ao = useRef<{ configuration: { transparencyAware: boolean } } | null>(null)
+  const ao = useRef<{ configuration: AOConfiguration } | null>(null)
   useEffect(() => {
     // Not exposed as a prop. Transparency-aware AO re-renders every
     // transparent mesh — all the glazing — in an extra pass, and clear glass
     // should not occlude what is behind it anyway.
     if (ao.current) ao.current.configuration.transparencyAware = false
     if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__ao = ao.current
+  })
+
+  useFrame(() => {
+    const configuration = ao.current?.configuration
+    if (!configuration) return
+    const inside = insideAt(progress)
+    const outside = mobile ? AO_OUTSIDE.mobile : AO_OUTSIDE.desktop
+    configuration.aoRadius = MathUtils.lerp(outside.aoRadius, AO_INSIDE.aoRadius, inside)
+    configuration.intensity = MathUtils.lerp(outside.intensity, AO_INSIDE.intensity, inside)
+    configuration.distanceFalloff = MathUtils.lerp(AO_OUTSIDE.distanceFalloff, AO_INSIDE.distanceFalloff, inside)
   })
 
   return <EffectComposer multisampling={0} frameBufferType={HalfFloatType} enableNormalPass={false}>
@@ -36,9 +59,9 @@ export function PostEffects({ mobile, bloom = .32 }: { mobile: boolean; bloom?: 
       quality="performance"
       halfRes
       depthAwareUpsampling
-      aoRadius={mobile ? 1.6 : 2}
-      distanceFalloff={1.2}
-      intensity={mobile ? 2.6 : 3.4}
+      aoRadius={mobile ? AO_OUTSIDE.mobile.aoRadius : AO_OUTSIDE.desktop.aoRadius}
+      distanceFalloff={AO_OUTSIDE.distanceFalloff}
+      intensity={mobile ? AO_OUTSIDE.mobile.intensity : AO_OUTSIDE.desktop.intensity}
       color="#16130f"
     />
     <SMAA />

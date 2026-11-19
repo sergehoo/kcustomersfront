@@ -45,6 +45,7 @@ LINTEL_Y0, LINTEL_Y1 = 9.88, 10.85     # wraps the old roof edge (10.0–10.62)
 JAMB = .30
 
 BATHROOM = ((-7.9, -2.02), (6.95, 9.55), (12.42, 15.83))
+STAIR_BAY = (-.15, 1.75, 16.85)        # x0, x1, front of the stair's half landing
 
 
 def B(x, y, z):
@@ -166,6 +167,48 @@ def delete_faces(name, predicate):
     REPORT.append(f'{name}: {len(doomed)} faces removed')
 
 
+def cut_opening(name, x0, x1, y0, y1, z0, z1):
+    """Cuts a clean rectangular opening through a merged wall mesh: the faces
+    around the box are bisected on its edges first, so the deletion stops on
+    straight lines instead of taking whole wall-sized faces with it."""
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        return
+    if obj.data.users > 1:
+        obj.data = obj.data.copy()
+    world = obj.matrix_world
+    inverse = world.inverted()
+    normal_to_local = world.to_3x3().transposed()
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+
+    def near():
+        out = []
+        for face in bm.faces:
+            g = [(lambda v: (v.x, v.z, -v.y))(world @ v.co) for v in face.verts]
+            if all(min(p[k] for p in g) <= hi and max(p[k] for p in g) >= lo for k, (lo, hi) in enumerate(((x0, x1), (y0, y1), (z0, z1)))):
+                out.append(face)
+        return out
+
+    for point, normal in ((B(x0, 0, 0), Vector((1, 0, 0))), (B(x1, 0, 0), Vector((1, 0, 0))),
+                          (B(0, y0, 0), Vector((0, 0, 1))), (B(0, y1, 0), Vector((0, 0, 1)))):
+        faces = near()
+        edges = list({e for f in faces for e in f.edges})
+        verts = list({v for f in faces for v in f.verts})
+        bmesh.ops.bisect_plane(bm, geom=verts + edges + faces, plane_co=inverse @ point,
+                               plane_no=(normal_to_local @ normal).normalized())
+    doomed = []
+    for face in bm.faces:
+        c = world @ face.calc_center_median()
+        if x0 < c.x < x1 and y0 < c.z < y1 and z0 < -c.y < z1:
+            doomed.append(face)
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    REPORT.append(f'{name}: opening {x0:.2f}..{x1:.2f} × {y0:.2f}..{y1:.2f}, {len(doomed)} faces')
+
+
 def restyle(name, mapping):
     """Swaps materials on an existing object, slot by slot."""
     obj = bpy.data.objects.get(name)
@@ -190,11 +233,15 @@ def upper_floor():
     # ...including the old partition's head (a 1 m downstand under the ceiling)
     # and its sill across the floor, whose centres sit just outside that volume.
     delete_faces('Plane_Plaster_0', lambda x, y, z: -7.6 < x < -2.9 and 13.6 < z < 14.2 and 6.88 < y < 9.95)
+    # ...and the L-shaped partition of the purchased model's own bedroom, which
+    # ran through the master bed (x -4.30 → -2.93, z 8.75 → 11.54).
+    delete_faces('Plane_Plaster_0', lambda x, y, z: -4.36 < x < -2.88 and 8.7 < z < 11.6 and 7.0 < y < 9.85)
     for obj in list(bpy.data.objects):
         if obj.type == 'MESH' and ('Door' in obj.name or obj.name.startswith('Cube.020_')) and inside(centre(obj), ((-8.0, -1.95), (6.5, 10.0), (12.3, 16.0))):
             remove(obj.name)
     # Doorways off the landing into the suite and the bathroom.
-    for wall, (z_from, z_to) in (('W_SUITE_E', (10.95, 12.10)), ('W_BATH_E', (12.35, 13.40))):
+    # The second bedroom had no door at all: its landing wall was solid.
+    for wall, (z_from, z_to) in (('W_SUITE_E', (10.95, 12.10)), ('W_BATH_E', (12.35, 13.40)), ('W_BED2_W', (9.2, 10.1))):
         obj = bpy.data.objects.get(wall)
         if obj is None:
             continue
@@ -211,6 +258,46 @@ def upper_floor():
         pieces.append((x0, x1, y0 + 2.2, y1, z_from, z_to))
         remove(wall)
         boxes(wall, pieces, mat)
+    # The landing: the purchased model's door leaves between the gallery and the
+    # two halves of the landing become open doorways, a stray 9 cm wall stub
+    # that narrowed the way to the suite goes, and the void's glass rail stops
+    # short of the stair, whose top step it used to bar.
+    for obj in list(bpy.data.objects):
+        if obj.name.startswith(('Door.001_', 'Door.002_')):
+            remove(obj.name)
+    delete_faces('Plane_Plaster_0', lambda x, y, z: -1.62 < x < -1.43 and 11.4 < z < 12.76 and 7.0 < y < 9.85)
+    for name in ('W_VOID_RAIL', 'W_VOID_CAP'):
+        obj = bpy.data.objects.get(name)
+        if obj is None:
+            continue
+        corners = [obj.matrix_world @ Vector(c) for c in obj.bound_box]
+        x0 = min(c.x for c in corners)
+        y0, y1 = min(c.z for c in corners), max(c.z for c in corners)
+        z0, z1 = min(-c.y for c in corners), max(-c.y for c in corners)
+        mat = obj.material_slots[0].material if obj.material_slots else GLASS
+        remove(name)
+        box(name, x0, .8, y0, y1, z0, z1, mat)
+    # Behind the new pivot door the purchased model's own façade wall was still
+    # standing (z 16.22): the door opened onto plaster. A real opening, the
+    # leaf's size, now leads into the hall.
+    cut_opening('Plane_Plaster_0', 3.49, 4.96, 3.78, 6.63, 15.8, 16.3)
+    # Reveals: the wall is 33 cm thick (z 15.89 → 16.22); close its edges.
+    plaster = bpy.data.objects['Plane_Plaster_0'].material_slots[0].material
+    boxes('ENTRY_REVEALS', [
+        (3.41, 3.49, 3.78, 6.71, 15.88, 16.23),
+        (4.96, 5.04, 3.78, 6.71, 15.88, 16.23),
+        (3.41, 5.04, 6.63, 6.71, 15.88, 16.23),
+    ], plaster)
+    # The second bedroom had no window: its east wall (x 4.39 → 4.76) stood
+    # behind the bay glazed in east_facade(). The wall is opened to that bay.
+    cut_opening('Plane_Plaster_0', 4.3, 4.85, 7.0, 9.7, 9.15, 11.85)
+    plaster = bpy.data.objects['Plane_Plaster_0'].material_slots[0].material
+    boxes('BED2_WINDOW_REVEALS', [
+        (4.36, 4.78, 6.92, 7.0, 9.1, 11.9),
+        (4.36, 4.78, 9.7, 9.78, 9.1, 11.9),
+        (4.36, 4.78, 7.0, 9.7, 9.08, 9.15),
+        (4.36, 4.78, 7.0, 9.7, 11.85, 11.92),
+    ], plaster)
     # The bathroom had no roof over it in the purchased model. The ceiling sits
     # just under the tops of the marble linings (9.80) so no sky shows between.
     (bx0, bx1), _, (bz0, bz1) = BATHROOM
@@ -227,7 +314,13 @@ def frame():
     remove('FACADE_CANOPY_W')
 
     # Balcony slab: one 22 cm plane across the frame, also the porch ceiling.
-    box('FRAME_SLAB', FRAME_X0, FRAME_X1, SLAB_Y0, SLAB_Y1, 16.05, FRAME_FRONT, RENDER)
+    # Notched round the stair bay, whose half landing projects to z 16.8: the
+    # slab must not cut the stair's headroom.
+    boxes('FRAME_SLAB', [
+        (FRAME_X0, STAIR_BAY[0], SLAB_Y0, SLAB_Y1, 16.05, FRAME_FRONT),
+        (STAIR_BAY[0], STAIR_BAY[1], SLAB_Y0, SLAB_Y1, STAIR_BAY[2], FRAME_FRONT),
+        (STAIR_BAY[1], FRAME_X1, SLAB_Y0, SLAB_Y1, 16.05, FRAME_FRONT),
+    ], RENDER)
     # Wide lintel wrapping the old roof edge, and the two jambs.
     box('FRAME_LINTEL', FRAME_X0, FRAME_X1, LINTEL_Y0, LINTEL_Y1, FRAME_BACK, FRAME_FRONT, RENDER)
     boxes('FRAME_JAMBS', [

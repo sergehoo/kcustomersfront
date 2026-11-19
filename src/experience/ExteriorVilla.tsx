@@ -1,10 +1,11 @@
 import { useGLTF, useTexture } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { Color, DoubleSide, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, Texture, Vector2 } from 'three'
+import { Box3, Color, DoubleSide, Group, MathUtils, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, Texture, Vector2, type Object3D } from 'three'
 import type { Ambience } from './ambience'
 import { makeArchitecturalGlass } from './realism/glass'
 import { applyVariation, type VariationOptions } from './realism/materialVariation'
+import { doorOpeningAt } from './tour'
 
 const DESKTOP_MODEL = '/models/production/kaydan-villa-production-web.glb'
 const MOBILE_MODEL = '/models/production/kaydan-villa-production-mobile.glb'
@@ -17,6 +18,9 @@ const WATER = /^Water$/i
 const FOLIAGE = /^GG0500|calathea_orbifolia|potted_plant_01_leaves/i
 const SOFT = /DiningChair|DiningRug|Carpet_Plush/i
 const REFLECTIVE = /Glass|Water|Chrome|Gold|Metal|Brass/i
+/** Furniture and decoration (furnish_interiors.py, build_upper_floor.py). */
+const FURNISHING = /^(Living_|Dining_|Kitchen_(Stool|Bowl|Vase|Tray|Furniture)|Hall_|Landing_|Master_|Bath_|Bed2_|Terrace_|BED|NIGHTSTAND|DRESS_|BATH_|LAMP_|BENCH|SIDE_TABLE|CURTAIN)/
+
 /** Surfaces authored in Blender, which export at roughness 1 — fully matt. */
 const AUTHORED = /^KAYDAN_(FRONT_STONE|FRONT_STONE_WARM|TREAD|PAVING|ASPHALT|KERB|SOIL|LAWN|UPPER_)/i
 
@@ -51,7 +55,7 @@ const VARIATION: [RegExp, VariationOptions][] = [
 /** One boxwood material per source lawn material, shared across remounts. */
 const HEDGES = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>()
 
-export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience: Ambience }) {
+export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean; ambience: Ambience; progress: number }) {
   const gltf = useGLTF(villaModel(mobile), true, true)
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene])
   const animatedWaterMaps = useRef(new Set<Texture>())
@@ -126,7 +130,11 @@ export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience:
       child.geometry.computeBoundingSphere()
       child.updateWorldMatrix(true, false)
       const radius = (child.geometry.boundingSphere?.radius ?? 0) * child.matrixWorld.getMaxScaleOnAxis()
-      child.castShadow = !mobile && !glazed && radius > .35
+      // Furnishing: only the large pieces (sofas, beds, tables, armchairs) throw
+      // a sun shadow worth its pass — the shadow map covers the whole villa, so
+      // every small interior piece was drawn into it from every camera.
+      const furnishing = FURNISHING.test(child.name) || FURNISHING.test(child.parent?.name ?? '')
+      child.castShadow = !mobile && !glazed && radius > (furnishing ? .75 : .35)
       child.receiveShadow = !glazed
       child.frustumCulled = true
 
@@ -161,6 +169,11 @@ export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience:
           // dragged every "white" wall down to concrete. Grain comes from the
           // relief map and the variation shader instead.
           material.map = null
+          // The interior plaster also kept that concrete's normal map: broad
+          // blotches which, under a lamp grazing a wall, read as smoke stains
+          // across the suite and the hall. Interior plaster stays smooth — a
+          // fine relief tiled on this mesh's large UVs showed as a pattern.
+          if (name === 'KAYDAN_PLASTER_IVORY') material.normalMap = null
         }
         if (/^(rock_wall_11_disp_2k|KAYDAN_FRONT_STONE|KAYDAN_FRONT_STONE_WARM)$/.test(name)) {
           // Rubble stone out, honed limestone in: a fine mineral grain (the
@@ -242,7 +255,7 @@ export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience:
         if (SOFT.test(name)) material.roughness = .9
 
         // Micro-relief where the GLB supplies none of its own.
-        if (/^(Material\.001|KAYDAN_PLASTER_IVORY|KAYDAN_UPPER_PLASTER|material)$/.test(name) && !material.normalMap) {
+        if (/^(Material\.001|KAYDAN_UPPER_PLASTER|material)$/.test(name) && !material.normalMap) {
           const coarse = name === 'Material.001'
           material.normalMap = detail(plasterNormal, coarse ? 6 : 9)
           material.normalScale = new Vector2(coarse ? .45 : .34, coarse ? .45 : .34)
@@ -316,12 +329,70 @@ export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience:
     })
   }, [scene, ambience])
 
-  useFrame((_, delta) => {
+  // The front door is a pivot door: its leaf and pull turn about a vertical
+  // axis 40 cm in from the east edge, the long side swinging out over the porch
+  // (a wall stands just inside), as the visit walks in (tour.ts).
+  const door = useMemo(() => {
+    const parts = [scene.getObjectByName('ENTRY_DOOR'), scene.getObjectByName('ENTRY_DOOR_PULL')].filter((part): part is Object3D => Boolean(part))
+    if (!parts.length) return null
+    scene.updateMatrixWorld(true)
+    const bounds = new Box3().setFromObject(parts[0])
+    const hinge = new Group()
+    hinge.name = 'KD entry door hinge'
+    hinge.position.set(bounds.max.x - .4, 0, (bounds.min.z + bounds.max.z) / 2)
+    scene.add(hinge)
+    hinge.updateMatrixWorld(true)
+    parts.forEach((part) => hinge.attach(part))
+    return hinge
+  }, [scene])
+
+  // Sheer curtains breathe: a slow wave along their own normals, strongest at
+  // the hem. Patched once, so it compiles with everything else at load.
+  const breeze = useMemo(() => ({ value: 0 }), [])
+  useLayoutEffect(() => {
+    scene.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+      const material = child.material as MeshStandardMaterial
+      if (material?.name !== 'KAYDAN_SHEER' || material.userData.kdBreeze) return
+      material.userData.kdBreeze = true
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.kdTime = breeze
+        shader.vertexShader = `uniform float kdTime;\n${shader.vertexShader}`.replace('#include <begin_vertex>', `#include <begin_vertex>
+          float kdSway = sin(kdTime * 1.05 + position.x * 2.3 + position.z * 2.3 + position.y * .9);
+          transformed += objectNormal * kdSway * .011;`)
+      }
+      material.customProgramCacheKey = () => 'kd-sheer'
+      material.needsUpdate = true
+    })
+  }, [scene, breeze])
+
+  // Rooms that cannot be seen from where the camera is are not drawn. From the
+  // north side — the arrival, the entrance, the garden — the upper floor's
+  // suite, bathroom and bedroom are behind solid walls, and the hall behind a
+  // closed door (and from the south, behind the house); together they were ~150 draw calls per frame there (main,
+  // shadow and occlusion passes). Visibility only: nothing recompiles.
+  const hidden = useMemo(() => {
+    const collect = (pattern: RegExp) => {
+      const found: Object3D[] = []
+      scene.traverse((child) => {
+        if (pattern.test(child.name) && !pattern.test(child.parent?.name ?? '')) found.push(child)
+      })
+      return found
+    }
+    return { upstairs: collect(/^(Master|Bath|Bed2)_/), hall: collect(/^Hall_/) }
+  }, [scene])
+
+  useFrame((state, delta) => {
     const speed = Math.min(delta, .05)
     animatedWaterMaps.current.forEach((texture) => {
       texture.offset.x = (texture.offset.x + speed * .012) % 1
       texture.offset.y = (texture.offset.y + speed * .006) % 1
     })
+    const z = state.camera.position.z
+    hidden.upstairs.forEach((object) => { object.visible = z < 16.4 })
+    hidden.hall.forEach((object) => { object.visible = z > 8.6 && z < 18.2 })
+    breeze.value = state.clock.elapsedTime
+    if (door) door.rotation.y = MathUtils.degToRad(86) * doorOpeningAt(progress)
   })
 
   if (import.meta.env.DEV) {

@@ -1,7 +1,7 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { ArrowUpRight, ChevronDown } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { NeutralToneMapping } from 'three'
 import { SiteHeader } from '../components/layout/SiteHeader'
@@ -11,6 +11,7 @@ import { EXPERIENCE_SECTIONS, OUTRO_PROGRESS, SECTION_COUNT, SECTION_TOTAL, type
 import { useExperienceScroll } from './useExperienceScroll'
 import { useAmbienceControl } from './ambience'
 import { AmbienceToggle } from './AmbienceToggle'
+import { TOUR_SCROLL_VH } from './tour'
 
 const StaticFallback = lazy(() => import('./StaticFallback'))
 
@@ -157,7 +158,8 @@ export function CustomerCareExperience() {
     return () => window.clearTimeout(timer)
   }, [assetsLoading, loaded, total, webgl, sceneReady])
 
-  return <div className="experience-page">
+  // The scroll length grows with the tour: every shot and every move has its share.
+  return <div className="experience-page" style={{ '--kd-visit-length': `${TOUR_SCROLL_VH}vh` } as CSSProperties}>
     {!dismissed && <div className="experience-loader" role="status" aria-live="polite">
       <span>KAYDAN</span>
       <i style={{ transform: `scaleX(${Math.max(.03, assetsProgress / 100)})` }} />

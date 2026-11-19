@@ -4,6 +4,7 @@ import { useLayoutEffect, useMemo } from 'react'
 import { BackSide, Color, EquirectangularReflectionMapping, MathUtils, ShaderMaterial, SRGBColorSpace, Vector3 } from 'three'
 import type { Fog, Texture } from 'three'
 import type { Ambience } from './ambience'
+import { TOUR_MARKS } from './tour'
 
 /**
  * Photographic sky, split in two on purpose:
@@ -49,12 +50,12 @@ type SkyStop = {
  */
 const STOPS: SkyStop[] = [
   { at: 0, sunAzimuth: 105, sunElevation: 33, skyIntensity: 1, envIntensity: .72, fog: '#c4ccd3' },
-  { at: .22, sunAzimuth: 100, sunElevation: 33, skyIntensity: 1, envIntensity: .72, fog: '#c4ccd3' },
-  // Swung round while the camera crosses the terrace, so that indoors a low
-  // afternoon sun comes through the south bay and lays real patches on the floors.
-  { at: .34, sunAzimuth: -76, sunElevation: 17, skyIntensity: 1, envIntensity: .9, fog: '#c4ccd3' },
-  { at: .70, sunAzimuth: -80, sunElevation: 17, skyIntensity: 1, envIntensity: .9, fog: '#c7cdd2' },
-  { at: .80, sunAzimuth: -70, sunElevation: 26, skyIntensity: 1, envIntensity: .72, fog: '#c9cdd0' },
+  { at: TOUR_MARKS.enter[0], sunAzimuth: 100, sunElevation: 33, skyIntensity: 1, envIntensity: .72, fog: '#c4ccd3' },
+  // Swung round while the camera goes through the front door, so that indoors a
+  // low afternoon sun comes through the south bay and lays real patches on the floors.
+  { at: TOUR_MARKS.enter[1], sunAzimuth: -76, sunElevation: 17, skyIntensity: 1, envIntensity: .9, fog: '#c4ccd3' },
+  { at: TOUR_MARKS.exit[0], sunAzimuth: -80, sunElevation: 17, skyIntensity: 1, envIntensity: .9, fog: '#c7cdd2' },
+  { at: TOUR_MARKS.exit[1], sunAzimuth: -70, sunElevation: 26, skyIntensity: 1, envIntensity: .72, fog: '#c9cdd0' },
   { at: 1, sunAzimuth: -72, sunElevation: 24, skyIntensity: 1, envIntensity: .72, fog: '#cbcdcd' },
 ]
 

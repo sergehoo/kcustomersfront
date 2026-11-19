@@ -85,3 +85,44 @@ doorways, and the bathroom its ceiling. Furniture stays modular.
 The east bank is cut with straight `bisect` planes before any face is
 deleted (the terrain's triangles are ~1.7 m), then held by a low wall, a
 planted shelf and an upper wall, with the natural bank behind.
+
+## Furnishing and camera shots
+
+The full chain, always from the pre-restructuring blend:
+
+```bash
+python3 blender/scripts/generate_art.py          # abstract canvases → assets-source/art/
+blender -b blender/backup-avant-restructuration-2026-11-19/kaydan-villa-production.blend \
+  --python blender/scripts/restructure_front.py \
+  --python blender/scripts/restructure_volumes.py \
+  --python blender/scripts/furnish_interiors.py \
+  --python blender/scripts/camera_shots.py \
+  --python blender/scripts/merge_furniture.py
+npm run optimize:production
+```
+
+`furnish_interiors.py` dresses every room — living, dining, kitchen, hall,
+landing, suite, bathroom, second bedroom, terrace — with CC0 Poly Haven pieces
+(`assets-source/models/external/polyhaven/`, see `public/models/LICENSES.md`)
+and pieces built in place (sofas, cushions, curtains, canvases, books, stools,
+lamps). It also applies the upper floor's bevel/subdivision modifiers, which the
+glTF export ignores, slides one leaf of the south bay open, and gives the
+camera's subjects readable names (`Kitchen_Island_*`, `Dining_Table_*`…).
+
+`camera_shots.py` holds the visit's compositions: per room an overview and
+focus shots, each aimed at a `TARGET_*` anchor on real furniture, and the
+waypoints between them through real passages. It validates them against the
+model (camera clearance, target visible, no leg through a wall), derives a
+mobile framing per shot, adds a `CAM_<ROOM>_<SHOT>` camera per shot to the
+`CAMERA_SHOTS` collection for tuning, and writes `src/experience/tourShots.ts`.
+Re-run it alone after moving a shot:
+
+```bash
+blender -b blender/kaydan-villa-production.blend --python blender/scripts/camera_shots.py
+```
+
+`merge_furniture.py` runs last: each room's static furniture is joined into one
+`<Room>_Furniture` object (one draw call per material per room) once the shots
+have taken their targets from the separate pieces. Linked duplicates stay apart,
+since glTF instancing already draws each set in one call. Re-running
+`camera_shots.py` alone needs the unmerged blend, so re-run the whole chain.

@@ -91,10 +91,10 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .back-link{margin-bottom:64px}
 
 /* ── Experience shell ──────────────────────────────────────────────────────── */
-.experience-page{position:relative;min-height:820vh;background:var(--kd-ink)}
+.experience-page{position:relative;min-height:var(--kd-visit-length,820vh);background:var(--kd-ink)}
 .experience-stage{position:fixed;inset:0;z-index:0;background:#1d2327}
 .experience-stage canvas{display:block;width:100%!important;height:100%!important}
-.experience-scroll{position:relative;z-index:1;height:820vh;pointer-events:none}
+.experience-scroll{position:relative;z-index:1;height:var(--kd-visit-length,820vh);pointer-events:none}
 .experience-scroll>div{height:100vh}
 .experience-ui{position:fixed;inset:0;z-index:2;pointer-events:none}
 .experience-ui>*{pointer-events:auto}
@@ -252,7 +252,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   .header-cta{display:none}
   .menu-toggle{width:42px;height:42px}
   .mobile-nav{top:54px;width:calc(100vw - 32px)}
-  .experience-page,.experience-scroll{min-height:700vh;height:700vh}
+  .experience-page,.experience-scroll{min-height:var(--kd-visit-length,700vh);height:var(--kd-visit-length,700vh)}
   .experience-copy,.experience-copy--hero{top:26%;left:18px;width:calc(100vw - 36px)}
   .experience-copy h1,.experience-copy--hero h1{font-size:clamp(52px,14.5vw,66px);line-height:.83;letter-spacing:-.03em}
   .experience-copy h1 .copy-line{white-space:normal}

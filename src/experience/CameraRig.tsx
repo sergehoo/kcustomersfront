@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import { MathUtils, PerspectiveCamera, Raycaster, Vector2, Vector3 } from 'three'
 import { cameraStateAt } from './CameraPath'
+import { insideAt } from './interior'
 
 type CameraOverride = { position: Vector3; target: Vector3; fov: number }
 
@@ -106,7 +107,9 @@ export function CameraRig({ progress, mobile, exposure = 1 }: { progress: number
       camera.position.copy(destination)
       settled.current = true
     } else {
-      camera.position.lerp(destination, 1 - Math.exp(-step * 3.1))
+      // Tight enough to stay on the validated path through doorways and up the
+      // stair: a loose lag cut the corners of the path into the walls.
+      camera.position.lerp(destination, 1 - Math.exp(-step * 7))
     }
 
     lookCamera.current.position.copy(camera.position)
@@ -126,7 +129,7 @@ export function CameraRig({ progress, mobile, exposure = 1 }: { progress: number
 
     // Interiors are lit by the sky through the openings only, so they need about
     // a third of a stop more than the open hillside — as a photographer would.
-    const inside = MathUtils.smoothstep(progress, .25, .32) * (1 - MathUtils.smoothstep(progress, .7, .77))
+    const inside = insideAt(progress)
     const targetExposure = (1 + inside * .38) * exposure
     gl.toneMappingExposure = MathUtils.lerp(gl.toneMappingExposure, targetExposure, 1 - Math.exp(-step * 1.8))
   })

@@ -4,6 +4,8 @@ import { Color, MathUtils, Object3D, Vector3 } from 'three'
 import type { DirectionalLight, HemisphereLight, PointLight, SpotLight } from 'three'
 import type { Ambience } from './ambience'
 import { sunVectorAt } from './Sky'
+import { insideAt } from './interior'
+import { TOUR_MARKS } from './tour'
 
 /**
  * The sun is the only daylight source besides the sky probe. The previous rig
@@ -15,8 +17,8 @@ import { sunVectorAt } from './Sky'
  */
 const SUN_STOPS: { at: number; color: string; intensity: number }[] = [
   { at: 0, color: '#ffeed6', intensity: 5.2 },
-  { at: .30, color: '#ffe6c6', intensity: 4.8 },
-  { at: .70, color: '#ffe6c6', intensity: 4.8 },
+  { at: TOUR_MARKS.enter[1], color: '#ffe6c6', intensity: 4.8 },
+  { at: TOUR_MARKS.exit[0], color: '#ffe6c6', intensity: 4.8 },
   { at: 1, color: '#ffdfb8', intensity: 5.0 },
 ]
 
@@ -86,8 +88,9 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
   // only. Mounting and unmounting them on the threshold changed the light count,
   // which recompiled every material in the villa and froze the frame ~0.5–0.8 s.
   useFrame(() => {
-    const inside = MathUtils.smoothstep(progress, .25, .32) * (1 - MathUtils.smoothstep(progress, .7, .77))
-    const arrival = 1 - MathUtils.smoothstep(progress, .2, .27)
+    const inside = insideAt(progress)
+    // Façade lights accompany the arrival by day, until the front door.
+    const arrival = 1 - MathUtils.smoothstep(progress, TOUR_MARKS.enter[0] - .02, TOUR_MARKS.enter[1])
     const look = sunLook(progress)
     const night = ambience.mode === 'night'
     if (key.current) {
