@@ -40,7 +40,7 @@ function readCameraOverride() {
   return () => liveOverride
 }
 
-export function CameraRig({ progress, mobile }: { progress: number; mobile: boolean }) {
+export function CameraRig({ progress, mobile, exposure = 1 }: { progress: number; mobile: boolean; exposure?: number }) {
   const { camera, pointer, gl, scene } = useThree()
   const raycaster = useMemo(() => new Raycaster(), [])
   const destination = useMemo(() => new Vector3(), [])
@@ -73,6 +73,7 @@ export function CameraRig({ progress, mobile }: { progress: number; mobile: bool
   }
 
   useFrame(({ clock }, delta) => {
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__gl = gl
     const step = Math.min(delta, 1 / 30)
     let destinationFov: number
 
@@ -123,11 +124,11 @@ export function CameraRig({ progress, mobile }: { progress: number; mobile: bool
       }
     }
 
-    // Interiors need a little more exposure than the open hillside.
-    const inside = MathUtils.smoothstep(progress, .24, .34) * (1 - MathUtils.smoothstep(progress, .66, .78))
-    const targetExposure = .70 + inside * .18
+    // Interiors are lit by the sky through the openings only, so they need about
+    // a third of a stop more than the open hillside — as a photographer would.
+    const inside = MathUtils.smoothstep(progress, .25, .32) * (1 - MathUtils.smoothstep(progress, .7, .77))
+    const targetExposure = (1 + inside * .38) * exposure
     gl.toneMappingExposure = MathUtils.lerp(gl.toneMappingExposure, targetExposure, 1 - Math.exp(-step * 1.8))
-    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__gl = gl
   })
 
   return null

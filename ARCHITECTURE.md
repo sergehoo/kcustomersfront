@@ -18,8 +18,15 @@ src/experience/
   Scene.tsx                   composition du monde WebGL et adaptation performance
   CameraPath.ts               keyframes caméra ancrées aux sections + splines Catmull–Rom
   CameraRig.tsx               amortissement position/quaternion, FOV, exposition, sondes de dev
-  ExteriorVilla.tsx           chargement du GLB de production et réglages matériaux
-  Lighting.tsx                lumière naturelle et architecturale progressive
+  ExteriorVilla.tsx           chargement du GLB, palette, matériaux, entrée, découpes de l'étage
+  Lighting.tsx                soleil/lune, lampes, éclairage architectural (intensités seulement)
+  Sky.tsx                     ciel photo + HDRI sans soleil (jour), dôme « heure bleue » (nuit)
+  ambience.ts                 mode jour/nuit selon l'heure locale, configuration centralisée
+  PostEffects.tsx             occlusion N8AO, SMAA, bloom, tone mapping Neutral, vignette
+  Surroundings.tsx            colline et mer autour de la parcelle
+  Garden.tsx                  jardin procédural instancié (graminées, agaves, topiaires, palmiers)
+  NightLights.tsx             halos de lumière additifs de nuit (lavages de murs, downlights, contremarches)
+  realism/                    variation des matériaux, verre de Fresnel, calepinage, entrée, découpes
   sections.ts                 source de vérité unique : ordre, numérotation, contenu, routes
   useExperienceScroll.ts      scroll → progression → section, `moveTo`, deep link `?scene=`
   StaticFallback.tsx          fallback uniquement en cas d'absence de WebGL
@@ -32,12 +39,14 @@ src/experience/
 | # | Section | Espace cadré | Route |
 |---:|---|---|---|
 | 01 | EXTÉRIEUR | Allée, façade, escalier d'entrée, garage | — |
-| 02 | ENTRÉE | Montée des marches jusqu'à la porte | `/rendez-vous` |
+| 02 | ENTRÉE | Montée de l'escalier principal jusqu'à la porte sous l'auvent | `/rendez-vous` |
 | 03 | HALL D'ACCUEIL | Comptoir d'accueil, robinetterie laiton, ouverture sur l'horizon | `/visiteur` |
-| 04 | ESPACE DE TRAVAIL | Table de réunion six places, mur en pierre, suspension | `/reclamation` |
+| 04 | ESPACE DE TRAVAIL | Table de réunion six places, mur en calcaire, suspension | `/reclamation` |
 | 05 | CIRCULATION | Escalier suspendu et garde-corps verre | `/suivi` |
-| 06 | SALON CLIENT | Table extérieure, cuisine d'été, intérieur lisible au travers du vitrage | `/espace-client` |
-| 07 | TERRASSE | Façade sud, deux niveaux de vitrage, bains de soleil, piscine | `/contact` |
+| 06 | SUITE PARENTALE | Lit, tête de lit, chevets, lumière rasante | `/suivi` |
+| 07 | SALLE DE BAIN | Baignoire îlot, marbre, double vasque | `/espace-client` |
+| 08 | SALON CLIENT | Table extérieure, cuisine d'été, intérieur lisible au travers du vitrage | `/espace-client` |
+| 09 | TERRASSE | Façade sud, deux niveaux de vitrage, bains de soleil, piscine | `/contact` |
 
 Au-delà de `OUTRO_PROGRESS` (0.93), la caméra s'élève en plan large et la séquence de fin prend le cadre.
 
@@ -110,3 +119,12 @@ Le poids venait de la géométrie, pas des textures (5.5 Mo de WebP pour 882 k t
 ## Accessibilité
 
 Les CTA et la navigation restent du DOM sémantique. Les jalons de visite portent des libellés ARIA. Le chrome masqué par la séquence de fin passe en `visibility: hidden`, ce qui le retire réellement du parcours clavier et du hit-testing. `prefers-reduced-motion` neutralise la révélation par ligne, la transition du menu mobile et le défilement animé de `moveTo`.
+
+## Rendu et ambiance jour / nuit
+
+- **Mode** : `ambience.ts` choisit `day` (07:00–18:59, heure locale) ou `night`, revérifié toutes les 5 minutes ; `?ambience=day|night` force un mode. Toutes les différences sont des nombres dans `AMBIENCES` : les deux modes montent exactement les mêmes lumières, maillages et matériaux, donc un changement de mode ne recompile aucun shader.
+- **Jour** : ciel photographique 4K en fond ; éclairage par le même ciel en HDRI dont le disque solaire est écrêté (`npm run prepare:sky`), le soleil étant une lumière directionnelle à ombres alignée sur lui. Sa hauteur est découplée du ciel à l'intérieur (soleil bas d'après-midi) pour que la lumière entre par les baies.
+- **Nuit** : dôme « heure bleue » procédural, lune froide, lampes intérieures, lumières de façade, LED sous les nez de marche, piscine turquoise ; les lavages de murs sont des halos additifs (`NightLights.tsx`) plutôt que des lumières réelles, pour ne pas alourdir chaque pixel.
+- **Post-traitement** : N8AO en qualité `performance` sans passe transparence (mesuré ~40 im/s en 2160×1350 contre ~7 en `medium`), tone mapping Neutral appliqué une seule fois en fin de chaîne.
+- **Entrée** : la porte principale est sur le porche couvert, en tête de l'escalier (`realism/entrance.ts`) ; l'ancien panneau bois devient un vitrage fumé, la jardinière qui barrait la porte est retirée.
+- **Performance** : le moniteur abaisse le DPR à 1 une seule fois en cas de chute ; la précompilation (`Warmup`) garde l'écran de chargement jusqu'à ce que les shaders soient prêts.

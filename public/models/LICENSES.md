@@ -38,3 +38,12 @@ original GLB. Its textures are resized and converted for WebGL delivery. Run
 The Blender production pipeline extracts only the sofa mesh from this scene and
 records the attribution in `SOFA_LIVING_CC_BY`. The complete room is not merged
 into the KAYDAN architecture.
+
+## Sky and environment
+
+| Local asset | Source asset | Author | License | Source URL |
+| --- | --- | --- | --- | --- |
+| `../assets/hdr/kloofendal-38d-sunless-1k.hdr` | Kloofendal 38d Partly Cloudy (Pure Sky), 1K HDR with the solar disc clamped out | Greg Zaal / Poly Haven | CC0 1.0 | https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky |
+| `../assets/hdr/kloofendal-38d-sky-4k.webp`, `-2k.webp` | Same asset, tonemapped JPG resized to 4K / 2K WebP | Greg Zaal / Poly Haven | CC0 1.0 | https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky |
+
+Sources are kept in `assets-source/hdr/kloofendal_38d/` (not versioned). Regenerate the served files with `npm run prepare:sky`.

@@ -1,14 +1,15 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { ArrowUpRight, ChevronDown } from 'lucide-react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ACESFilmicToneMapping } from 'three'
+import { NeutralToneMapping } from 'three'
 import { SiteHeader } from '../components/layout/SiteHeader'
 import { ExperienceOutro } from './ExperienceOutro'
 import { Scene } from './Scene'
 import { EXPERIENCE_SECTIONS, OUTRO_PROGRESS, SECTION_COUNT, SECTION_TOTAL, type ExperienceSection, type ExperienceSectionId } from './sections'
 import { useExperienceScroll } from './useExperienceScroll'
+import { useAmbience } from './ambience'
 
 const StaticFallback = lazy(() => import('./StaticFallback'))
 
@@ -132,6 +133,11 @@ export function CustomerCareExperience() {
   const [debug3d] = useState(() => new URLSearchParams(window.location.search).get('debug3d') === 'true')
   const { active: assetsLoading, progress: assetsProgress, loaded, total } = useProgress()
   const [dismissed, setDismissed] = useState(false)
+  const ambience = useAmbience()
+  // Set once every shader is compiled (Scene → Warmup), so the curtain never
+  // lifts on a frame that is still building its programs.
+  const [sceneReady, setSceneReady] = useState(false)
+  const onSceneReady = useCallback(() => setSceneReady(true), [])
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 767px)')
@@ -145,10 +151,10 @@ export function CustomerCareExperience() {
   // Hold the curtain until the villa is actually on screen, then fade it out.
   useEffect(() => {
     if (webgl === false) { setDismissed(true); return }
-    if (assetsLoading || total === 0 || loaded < total) return
-    const timer = window.setTimeout(() => setDismissed(true), 420)
+    if (!sceneReady || assetsLoading || total === 0 || loaded < total) return
+    const timer = window.setTimeout(() => setDismissed(true), 260)
     return () => window.clearTimeout(timer)
-  }, [assetsLoading, loaded, total, webgl])
+  }, [assetsLoading, loaded, total, webgl, sceneReady])
 
   return <div className="experience-page">
     {!dismissed && <div className="experience-loader" role="status" aria-live="polite">
@@ -160,12 +166,15 @@ export function CustomerCareExperience() {
     <div className="experience-stage" aria-hidden="true">
       {webgl === true ? <Canvas
         shadows={mobile ? false : 'percentage'}
-        dpr={mobile ? [1, 1.2] : [1, 1.6]}
-        camera={{ fov: mobile ? 58 : 52, near: .1, far: 140, position: [5.6, 2.5, 30.2] }}
-        gl={{ antialias: !mobile, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: import.meta.env.DEV }}
-        onCreated={({ gl }) => { gl.toneMapping = ACESFilmicToneMapping; gl.toneMappingExposure = .70 }}
+        dpr={mobile ? [1, 1.2] : [1, 1.25]}
+        // `far` reaches the sea horizon; antialiasing is SMAA in PostEffects, so
+        // the default framebuffer needs no MSAA of its own.
+        camera={{ fov: mobile ? 58 : 52, near: .1, far: 2600, position: [5.6, 2.5, 30.2] }}
+        gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance', preserveDrawingBuffer: import.meta.env.DEV }}
+        // Tone mapping is applied once, at the end of PostEffects.
+        onCreated={({ gl }) => { gl.toneMapping = NeutralToneMapping; gl.toneMappingExposure = 1 }}
       >
-        <Scene progress={progress} mobile={mobile} debug3d={debug3d} />
+        <Scene progress={progress} mobile={mobile} debug3d={debug3d} onReady={onSceneReady} ambience={ambience} />
       </Canvas> : webgl === false ? <Suspense fallback={null}><StaticFallback /></Suspense> : null}
     </div>
 

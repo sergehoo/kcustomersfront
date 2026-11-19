@@ -40,10 +40,14 @@ const KEYFRAMES: Keyframe[] = [
 
   // 02 — ENTRÉE. Up the east flight (x 7.3, the only axis with a clear run to the
   // villa's own terrace), onto the landing, then a turn towards the door.
-  { at: 'entrance', hold: .5, position: [7.3, 2.5, 28.2], target: [7.2, 4.4, 21.5], fov: 52, note: 'pied de l’escalier' },
-  { at: .16, position: [7.3, 3.4, 24.6], target: [7.0, 4.8, 19.6], fov: 50, note: 'première volée' },
-  { at: .195, position: [7.3, 4.9, 21.2], target: [6.0, 5.0, 17.6], fov: 52, note: 'seconde volée' },
-  { at: .218, position: [6.2, 5.45, 18.4], target: [2.8, 5.0, 15.6], fov: 54, note: 'palier, pivot vers la porte' },
+  // The stair now ends on the front door (realism/entrance): every shot of the
+  // climb keeps the oak door under its canopy at the end of the axis.
+  { at: 'entrance', hold: .5, position: [7.3, 2.5, 28.2], target: [6.3, 4.6, 16.2], fov: 50, note: 'pied de l’escalier, porte dans l’axe' },
+  { at: .16, position: [7.3, 3.4, 24.6], target: [6.0, 4.9, 16.0], fov: 50, note: 'première volée' },
+  { at: .195, position: [7.2, 4.9, 21.2], target: [5.7, 5.0, 15.8], fov: 52, note: 'seconde volée' },
+  { at: .218, position: [5.6, 5.4, 19.7], target: [5.5, 5.0, 15.8], fov: 56, note: 'palier, face à la porte d’entrée' },
+  // Round the east side of the porch column before turning down the east walk.
+  { at: .227, position: [8.3, 5.45, 18.5], target: [8.3, 5.0, 14.0], fov: 54, note: 'contournement du poteau' },
   // The recessed door is presented from the landing, but it is not the way in:
   // raycasting shows solid plaster behind it on every axis. The visit continues
   // along the east flank of the terrace and enters through the south sliding bay
@@ -67,14 +71,23 @@ const KEYFRAMES: Keyframe[] = [
   { at: .43, position: [-0.4, 5.42, 12.0], target: [0.6, 5.8, 14.4], fov: 53, note: 'pivot vers l’escalier' },
   { at: 'circulation', hold: .45, position: [1.3, 5.5, 11.4], target: [0.9, 6.5, 15.2], fov: 55, note: 'escalier suspendu' },
 
-  // 06 — SUITE PARENTALE. Climb to the landing, then into the master bedroom.
+  // 06 — SUITE PARENTALE. Up to the landing, through the doorway opened in the
+  // suite's east partition (ExteriorVilla → openDoorway), along the south bay,
+  // and round to the window corner: bed, channelled headboard, nightstands and
+  // the low afternoon sun raking across the linen and the oak dressing.
   { at: .525, position: [1.0, 7.5, 13.4], target: [0.2, 7.7, 11.4], fov: 56, note: 'arrivée à l’étage' },
-  { at: .555, position: [0.0, 8.55, 11.8], target: [-2.8, 8.3, 10.4], fov: 58, note: 'palier' },
-  { at: 'suite', hold: .5, position: [-2.6, 8.5, 9.0], target: [-5.6, 7.9, 11.5], fov: 60, note: 'lit, dressing, baie sud' },
+  { at: .55, position: [0.1, 8.3, 11.7], target: [-3.2, 8.05, 11.5], fov: 58, note: 'palier, face à la suite' },
+  { at: .562, position: [-1.7, 8.25, 11.5], target: [-4.6, 7.8, 10.2], fov: 60, note: 'seuil de la suite' },
+  { at: .571, position: [-3.0, 8.2, 9.75], target: [-6.4, 7.7, 10.3], fov: 62, note: 'le long de la baie' },
+  { at: 'suite', hold: .5, position: [-7.45, 8.4, 8.9], target: [-3.45, 7.35, 11.3], fov: 64, note: 'lit, tête de lit, chevets, lumière rasante' },
 
-  // 07 — SALLE DE BAIN. Across the landing into the master bathroom.
-  { at: .625, position: [-2.3, 8.5, 11.4], target: [-4.2, 8.2, 13.4], fov: 58 },
-  { at: 'bathroom', hold: .45, position: [-7.4, 8.45, 12.7], target: [-3.3, 7.7, 15.2], fov: 62, note: 'double vasque, baignoire, douche' },
+  // 07 — SALLE DE BAIN. Back out to the landing and in through the bathroom
+  // doorway; framed from beside the vanity, west of the shower post, so the
+  // freestanding tub, the marble walls and the brass fittings fill the shot.
+  { at: .628, position: [-3.0, 8.2, 9.8], target: [-1.6, 8.1, 11.6], fov: 60, note: 'retour vers la porte' },
+  { at: .64, position: [-1.4, 8.25, 11.75], target: [-1.6, 8.1, 13.6], fov: 60, note: 'palier' },
+  { at: .651, position: [-1.55, 8.22, 12.85], target: [-5.6, 7.8, 13.9], fov: 64, note: 'seuil de la salle de bain' },
+  { at: 'bathroom', hold: .45, position: [-3.9, 8.2, 12.75], target: [-7.0, 7.45, 15.2], fov: 72, note: 'baignoire îlot, marbre, double vasque' },
 
   // Back down the stair and out through the sliding bay (x -4.36…-3.14 at z 8.6).
   { at: .695, position: [-0.6, 7.9, 13.4], target: [0.6, 6.6, 12.4], fov: 56, note: 'redescente' },

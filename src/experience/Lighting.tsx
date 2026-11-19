@@ -1,16 +1,23 @@
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
-import { Color, MathUtils, Vector3 } from 'three'
-import type { DirectionalLight, HemisphereLight } from 'three'
+import { useLayoutEffect, useMemo, useRef } from 'react'
+import { Color, MathUtils, Object3D, Vector3 } from 'three'
+import type { DirectionalLight, HemisphereLight, PointLight, SpotLight } from 'three'
+import type { Ambience } from './ambience'
 import { sunVectorAt } from './Sky'
 
-/** Sun colour follows the same morning→golden-hour arc as the sky. */
+/**
+ * The sun is the only daylight source besides the sky probe. The previous rig
+ * added a hemisphere light and two shadowless fill directionals: each one
+ * lifted the shadow side of every volume, which is exactly what made the villa
+ * read as a lit maquette rather than a photographed building. Contrast between
+ * sun and sky now comes from the scene, and ambient occlusion (PostEffects)
+ * grounds what the sun does not reach.
+ */
 const SUN_STOPS: { at: number; color: string; intensity: number }[] = [
-  { at: 0, color: '#ffbe86', intensity: 1.85 },
-  { at: .30, color: '#ffe0b4', intensity: 2.4 },
-  { at: .62, color: '#ffe6bd', intensity: 2.9 },
-  { at: .84, color: '#ffc98a', intensity: 2.5 },
-  { at: 1, color: '#ffb473', intensity: 2.0 },
+  { at: 0, color: '#ffeed6', intensity: 5.2 },
+  { at: .30, color: '#ffe6c6', intensity: 4.8 },
+  { at: .70, color: '#ffe6c6', intensity: 4.8 },
+  { at: 1, color: '#ffdfb8', intensity: 5.0 },
 ]
 
 function sunLook(progress: number) {
@@ -19,117 +26,152 @@ function sunLook(progress: number) {
   const from = SUN_STOPS[index]
   const to = SUN_STOPS[index + 1]
   const t = MathUtils.smoothstep(MathUtils.clamp((progress - from.at) / Math.max(1e-6, to.at - from.at), 0, 1), 0, 1)
-  return {
-    color: new Color(from.color).lerp(new Color(to.color), t),
-    intensity: MathUtils.lerp(from.intensity, to.intensity, t),
-  }
+  return { color: new Color(from.color).lerp(new Color(to.color), t), intensity: MathUtils.lerp(from.intensity, to.intensity, t) }
 }
 
-/**
- * Interior lamps are only worth their draw calls while the camera is inside.
- * `distance`/`decay` keep them local so they warm a room instead of washing the
- * whole villa.
- */
+/** Warm interior fittings, kept local with distance/decay. */
 const LAMPS = [
-  { position: [-5.2, 5.9, 14.2] as const, color: '#ffd8a4', intensity: 26, distance: 9 },
-  { position: [-3.8, 6.35, 11.0] as const, color: '#ffcb8c', intensity: 30, distance: 10 },
-  { position: [2.8, 6.25, 8.9] as const, color: '#ffd09a', intensity: 24, distance: 9 },
-  { position: [-7.6, 5.7, 7.0] as const, color: '#f8c184', intensity: 18, distance: 7 },
-  { position: [1.0, 6.6, 14.2] as const, color: '#ffd7a8', intensity: 16, distance: 8 },
-  { position: [-1.0, 8.9, 11.5] as const, color: '#ffd2a0', intensity: 20, distance: 9 },
+  { position: [-5.2, 5.9, 14.2] as const, color: '#ffd3a0', intensity: 14, distance: 8 },
+  { position: [-3.8, 6.35, 11.0] as const, color: '#ffcb8c', intensity: 16, distance: 9 },
+  { position: [2.8, 6.25, 8.9] as const, color: '#ffd09a', intensity: 12, distance: 8 },
+  { position: [-7.6, 5.7, 7.0] as const, color: '#f8c184', intensity: 10, distance: 7 },
+  { position: [1.0, 6.6, 14.2] as const, color: '#ffd7a8', intensity: 9, distance: 7 },
+  { position: [-1.0, 8.9, 11.5] as const, color: '#ffd2a0', intensity: 12, distance: 8 },
 ]
 
 /**
- * Uplights on the stone pier, wall washers on the entrance and grazing light
- * under the soffit. Aimed with an explicit target so the cone lands on a surface.
+ * Architectural exterior lighting. Off by day, it is what sells the villa at
+ * night: grazing light on the stone tower, washes up the white render, a
+ * downlight on the entrance door under its canopy.
  */
 const FACADE_LIGHTS = [
-  { position: [1.3, 3.9, 17.0] as const, target: [1.6, 9.2, 15.6] as const, color: '#ffd9a8', intensity: 34, angle: .42, distance: 16 },
-  { position: [3.0, 3.9, 17.0] as const, target: [3.0, 9.4, 15.6] as const, color: '#ffd9a8', intensity: 34, angle: .42, distance: 16 },
-  // Entrance wash, so the door reads as the focal point.
-  { position: [2.2, 6.4, 15.4] as const, target: [2.2, 4.0, 13.9] as const, color: '#ffdcb4', intensity: 26, angle: .62, distance: 10 },
+  { position: [1.3, 3.9, 17.0] as const, target: [1.6, 9.2, 15.6] as const, color: '#ffd7a4', intensity: 18, angle: .42, distance: 14 },
+  { position: [3.0, 3.9, 17.0] as const, target: [3.0, 9.4, 15.6] as const, color: '#ffd9a8', intensity: 14, angle: .42, distance: 14 },
+  { position: [5.5, 6.55, 16.55] as const, target: [5.5, 3.8, 16.0] as const, color: '#ffdcb0', intensity: 16, angle: .62, distance: 9 },
+  { position: [-6.2, 3.9, 17.4] as const, target: [-6.2, 9.0, 16.2] as const, color: '#ffd9a8', intensity: 16, angle: .48, distance: 14 },
+  { position: [8.6, 3.9, 16.4] as const, target: [8.6, 9.0, 15.7] as const, color: '#ffd9a8', intensity: 14, angle: .45, distance: 13 },
 ]
 
-/** Recessed lights in the stair cheeks, matching the emissive lenses. */
-const STEP_LIGHTS = [
-  [0.35, 1.7, 24.2] as const, [3.95, 2.6, 22.0] as const, [2.15, 3.6, 19.8] as const,
-]
+/** Down the main stair (x 7.3), matching the LED strips under the nosings. */
+const STEP_LIGHTS = [[7.3, 1.45, 24.6] as const, [7.3, 2.65, 22.4] as const, [7.3, 3.7, 19.6] as const]
 
-export function Lighting({ progress, mobile }: { progress: number; mobile: boolean }) {
-  const duskBoost = 1 - MathUtils.smoothstep(progress, 0, .3)
-  // Mounted only for the arrival scenes: these fittings are invisible from
-  // indoors yet still added a light to every material's shader.
-  const outside = progress < .26
+/** Underwater pool light: turquoise bounce on the south terrace at night. */
+const POOL_LIGHT = { position: [2.4, 3.1, .4] as const, color: '#58d2e4', intensity: 26, distance: 11 }
+
+/** Centre of the area the shadow map has to cover: forecourt to terrace. */
+const SHADOW_CENTRE = new Vector3(0, 3, 14)
+
+export function Lighting({ progress, mobile, ambience }: { progress: number; mobile: boolean; ambience: Ambience }) {
   const key = useRef<DirectionalLight>(null)
-  const sky = useRef<HemisphereLight>(null)
+  const bounce = useRef<HemisphereLight>(null)
+  const nightFill = useRef<HemisphereLight>(null)
+  const pool = useRef<PointLight>(null)
+  const lamps = useRef<(PointLight | null)[]>([])
+  const facade = useRef<(SpotLight | null)[]>([])
+  const steps = useRef<(PointLight | null)[]>([])
   const sun = useMemo(() => new Vector3(), [])
+  const target = useMemo(() => new Object3D(), [])
 
+  useLayoutEffect(() => {
+    target.position.copy(SHADOW_CENTRE)
+    target.updateMatrixWorld()
+    if (key.current) key.current.target = target
+    // Spot targets are not in the scene graph, so their world matrix is never
+    // refreshed on its own: without this every wash aimed at the origin.
+    facade.current.forEach((light) => light?.target.updateMatrixWorld())
+  }, [target])
+
+  // Every light stays mounted for the whole visit and is faded by intensity
+  // only. Mounting and unmounting them on the threshold changed the light count,
+  // which recompiled every material in the villa and froze the frame ~0.5–0.8 s.
   useFrame(() => {
-    const inside = MathUtils.smoothstep(progress, .26, .34) * (1 - MathUtils.smoothstep(progress, .64, .74))
+    const inside = MathUtils.smoothstep(progress, .25, .32) * (1 - MathUtils.smoothstep(progress, .7, .77))
+    const arrival = 1 - MathUtils.smoothstep(progress, .2, .27)
     const look = sunLook(progress)
+    const night = ambience.mode === 'night'
     if (key.current) {
       sunVectorAt(progress, sun)
-      key.current.position.copy(sun).multiplyScalar(42)
-      key.current.color.copy(look.color)
-      // Pull the sun back indoors so the interior reads by its own lamps.
-      key.current.intensity = look.intensity * (1 - inside * .3)
+      key.current.position.copy(SHADOW_CENTRE).addScaledVector(sun, 60)
+      // By night the same light becomes a faint cool moon, so shadows keep their direction.
+      if (night) key.current.color.set(ambience.key.color)
+      else key.current.color.copy(look.color)
+      key.current.intensity = look.intensity * ambience.key.intensity
     }
-    // Dusk needs the lamps to carry the frame, so they rise as the sun drops.
-    const dusk = 1 - MathUtils.smoothstep(progress, 0, .3)
-    if (sky.current) sky.current.intensity = (.3 - inside * .06) * (1 - dusk * .55)
+    if (nightFill.current) nightFill.current.intensity = ambience.nightFill
+    if (pool.current) pool.current.intensity = POOL_LIGHT.intensity * ambience.pool
+    // Indoors only: the light a pale stone floor throws back up at the
+    // ceiling. Without it every ceiling went near-black under AO, the main
+    // tell of a real-time interior.
+    if (bounce.current) bounce.current.intensity = inside * (night ? .2 : .75)
+    // Lamps are an accent in a daylight room, not its light source.
+    // By night every lamp is on, seen from outside as much as from inside.
+    lamps.current.forEach((light, index) => {
+      if (light) light.intensity = LAMPS[index].intensity * (night ? ambience.lamps : .25 + inside * .35)
+    })
+    facade.current.forEach((light, index) => {
+      if (light) light.intensity = FACADE_LIGHTS[index].intensity * ambience.facade * (night ? 1 : arrival)
+    })
+    steps.current.forEach((light) => {
+      if (light) light.intensity = 1.6 * ambience.steps * (night ? 1 : arrival)
+    })
   })
 
   return <>
-    <hemisphereLight ref={sky} args={['#cfe0f2', '#6b5a44', .3]} />
+    <primitive object={target} />
+    <hemisphereLight ref={bounce} args={['#f3efe8', '#c9b393', 0]} />
+    {/* Blue-hour sky light: keeps the white volumes reading against the dusk. */}
+    <hemisphereLight ref={nightFill} args={['#4a6cc0', '#141824', 0]} />
     <directionalLight
       ref={key}
       castShadow={!mobile}
-      position={[-18, 26, 22]}
-      color="#fff2dc"
-      intensity={3.1}
-      shadow-mapSize={mobile ? [512, 512] : [1536, 1536]}
-      // Tightened from ±34 / far 110: the wider frustum pulled the whole site
-      // into the shadow pass and spent most of the map on empty hillside.
-      shadow-camera-far={78}
-      shadow-camera-left={-22}
-      shadow-camera-right={22}
-      shadow-camera-top={22}
-      shadow-camera-bottom={-22}
-      shadow-bias={-.00012}
-      shadow-normalBias={.028}
+      color="#fff0dc"
+      intensity={4.4}
+      shadow-mapSize={mobile ? [512, 512] : [2048, 2048]}
+      shadow-camera-near={10}
+      shadow-camera-far={120}
+      shadow-camera-left={-25}
+      shadow-camera-right={25}
+      shadow-camera-top={25}
+      shadow-camera-bottom={-25}
+      shadow-bias={-.00018}
+      shadow-normalBias={.035}
+      shadow-radius={2.5}
     />
-    {/* Bounce from the pale travertine deck, which the HDRI alone under-reads. */}
-    {/* Dusk fill on the entrance façade: at low sun the concrete volumes went
-        almost black and the architecture stopped reading. */}
-    <directionalLight position={[10, 8, 34]} color="#cfd8e6" intensity={.35 + duskBoost * .75} />
-    <directionalLight position={[6, 3, -8]} color="#e8dcc8" intensity={.42} />
-    {/* Architectural exterior lighting. The fittings were emissive meshes only —
-        they looked lit but cast nothing, so no surface was ever washed. These
-        fade in with dusk and are dropped entirely on mobile. */}
-    {!mobile && outside && FACADE_LIGHTS.map((light, index) => <spotLight
+    {!mobile && FACADE_LIGHTS.map((light, index) => <spotLight
       key={`facade-${index}`}
+      ref={(node) => { facade.current[index] = node }}
       position={light.position}
       target-position={light.target}
       color={light.color}
-      intensity={light.intensity * duskBoost}
+      intensity={light.intensity}
       angle={light.angle}
       penumbra={.72}
       distance={light.distance}
       decay={2}
     />)}
-    {!mobile && outside && STEP_LIGHTS.map((position, index) => <pointLight
+    {!mobile && STEP_LIGHTS.map((position, index) => <pointLight
       key={`step-${index}`}
+      ref={(node) => { steps.current[index] = node }}
       position={position}
       color="#ffcf9c"
-      intensity={3.1 * duskBoost}
-      distance={3.4}
+      intensity={1.6}
+      distance={4.2}
       decay={2}
     />)}
-    {LAMPS.slice(0, mobile ? 3 : outside ? 4 : LAMPS.length).map((lamp, index) => <pointLight
+    {!mobile && <pointLight
+      ref={pool}
+      position={POOL_LIGHT.position}
+      color={POOL_LIGHT.color}
+      intensity={0}
+      distance={POOL_LIGHT.distance}
+      decay={2}
+    />}
+    {LAMPS.slice(0, mobile ? 3 : LAMPS.length).map((lamp, index) => <pointLight
       key={index}
+      ref={(node) => { lamps.current[index] = node }}
       position={lamp.position}
       color={lamp.color}
-      intensity={lamp.intensity * (1 + duskBoost * 1.5)}
+      intensity={lamp.intensity}
       distance={lamp.distance}
       decay={2}
     />)}

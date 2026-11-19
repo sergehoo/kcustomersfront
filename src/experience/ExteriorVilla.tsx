@@ -1,50 +1,79 @@
 import { useGLTF, useTexture } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { Color, DoubleSide, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, RepeatWrapping, Texture, Vector2 } from 'three'
+import { Box3, Color, DoubleSide, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, Texture, Vector2, Vector3 } from 'three'
+import type { Ambience } from './ambience'
+import { addCeiling, carveRoom, openDoorway } from './realism/carve'
+import { addStairLeds, buildEntrance, makeEntranceMaterials, quietOldDoor, type EntranceMaterials } from './realism/entrance'
+import { makeArchitecturalGlass } from './realism/glass'
+import { applyVariation, type VariationOptions } from './realism/materialVariation'
 
 const DESKTOP_MODEL = '/models/production/kaydan-villa-production-web.glb'
 const MOBILE_MODEL = '/models/production/kaydan-villa-production-mobile.glb'
 
+export const villaModel = (mobile: boolean) => (mobile ? MOBILE_MODEL : DESKTOP_MODEL)
+
 /** Material names come from the production GLB — verified with `npm run inspect:glb`. */
-const GLASS = /^Glass|Glassend|911Glass|modern_ceiling_lamp_01_glass/i
+const GLAZING = /^(Glass|Glassend|911Glass|KAYDAN_INNER_GLASS)$/
 const WATER = /^Water$/i
 const FOLIAGE = /^GG0500|calathea_orbifolia|potted_plant_01_leaves/i
 const SOFT = /DiningChair|DiningRug|Carpet_Plush/i
-const STONE = /KAYDAN_TRAVERTINE|rock_wall_11|stone_pathway|Ground003|Rock0/i
 const REFLECTIVE = /Glass|Water|Chrome|Gold|Metal|Brass/i
-/** Surfaces authored in Blender, which export at roughness 1 — fully matt, so
- * they never picked up a highlight or a reflection of the sky. */
+/** Surfaces authored in Blender, which export at roughness 1 — fully matt. */
 const AUTHORED = /^KAYDAN_(FRONT_STONE|FRONT_STONE_WARM|TREAD|PAVING|ASPHALT|KERB|SOIL|LAWN|UPPER_)/i
-/** Exported as metalness 1 by mistake; a mirrored fascia reads as chrome. */
-const FALSE_METAL = /^Material\.001$/
 
-/** The villa's render surfaces: large, untextured and dead flat until now. */
-const PLASTER = /KAYDAN_PLASTER|Plaster|Material\.001|^material/i
-/** Board-formed concrete: the villa's big grey volumes. */
-const CONCRETE = /Concrete048|KAYDAN_CONCRETE/i
-const MASONRY = /rock_wall_11|KAYDAN_TRAVERTINE|stone_pathway/i
+/**
+ * Per-material realism recipes. Scales are in metres and amplitudes are kept
+ * small on purpose: the aim is to stop a 10 m face returning one flat value,
+ * not to make the villa look weathered.
+ */
+const VARIATION: [RegExp, VariationOptions][] = [
+  // Off-white render on every volume, as on the reference villas. Dirt is kept
+  // very faint: on white it reads as neglect, not realism.
+  [/^Material\.001$/, { scale: 2.6, albedo: .045, roughness: .1, streaks: .07, grime: .12, dirt: '#6d6458', hueDrift: .012 }],
+  [/^KAYDAN_PLASTER_IVORY$/, { scale: 2.6, albedo: .045, roughness: .1, streaks: .06, grime: .12, dirt: '#6d6458', hueDrift: .012 }],
+  [/^KAYDAN_UPPER_PLASTER$|^material$/, { scale: 3.4, albedo: .05, roughness: .1, grime: .14, dirt: '#5b5246' }],
+  // Honed limestone cladding in large panels (tower, cheeks, retaining walls),
+  // replacing the rubble stone: mineral and warm, but architectural.
+  [/^(rock_wall_11_disp_2k|KAYDAN_FRONT_STONE|KAYDAN_FRONT_STONE_WARM)$/, { scale: 1.8, albedo: .05, roughness: .08, hueDrift: .02, tiles: { floor: [1.2, .6], wall: [1.2, .6], joint: .008, jointColor: '#a2988a', tone: .05 } }],
+  [/^KAYDAN_TRAVERTINE$/, { scale: 2.2, albedo: .06, roughness: .14, hueDrift: .03 }],
+  // Large-format pale limestone outside: 120 × 60 cm, fine joints, slab-to-slab tone.
+  [/^(KAYDAN_PAVING|stone_pathway_02)$/, { scale: 1.6, albedo: .05, roughness: .1, hueDrift: .02, tiles: { floor: [1.2, .6], wall: [1.2, .3], joint: .007, jointColor: '#9d9486', tone: .045 } }],
+  [/^KAYDAN_TREAD$/, { scale: 1.1, albedo: .05, roughness: .1, hueDrift: .02, tiles: { floor: [1.2, .6], joint: .006, jointColor: '#a59b8c', tone: .04 } }],
+  [/^KAYDAN_(ASPHALT|KERB)$/, { scale: 3.5, albedo: .12, roughness: .1 }],
+  [/^Ground003$/, { scale: 4.5, albedo: .2, roughness: .05, hueDrift: .12 }],
+  [/^KAYDAN_(LAWN|SOIL)$/, { scale: 2.2, albedo: .16, roughness: .04, hueDrift: .1 }],
+  [/^(KAYDAN_WOOD_WARM|KAYDAN_DARKWOOD|KAYDAN_UPPER_OAK)$/, { scale: 1.2, albedo: .06, roughness: .1 }],
+  [/^KAYDAN_UPPER_MARBLE$/, { scale: 1.5, albedo: .04, roughness: .08 }],
+]
 
-export function ExteriorVilla({ mobile }: { mobile: boolean }) {
-  const gltf = useGLTF(mobile ? MOBILE_MODEL : DESKTOP_MODEL, true, true)
+/** Interior of the master bathroom built by `blender/scripts/build_upper_floor.py`. */
+const BATHROOM_VOLUME = new Box3(new Vector3(-7.9, 6.95, 12.42), new Vector3(-2.02, 9.55, 15.83))
+
+/** One boxwood material per source lawn material, shared across remounts. */
+const HEDGES = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>()
+
+/** Shared across remounts so the entrance never compiles twice. */
+const ENTRANCE_MATERIALS = new WeakMap<Texture, EntranceMaterials>()
+/** The old timber panel, re-read as smoked glazing beside the stone tower. */
+const SMOKED_PANEL = new MeshStandardMaterial({ name: 'KD_SMOKED_PANEL', color: '#25292c', roughness: .16, metalness: .35, envMapIntensity: 1.4, emissive: '#ffcb8e', emissiveIntensity: 0 })
+
+export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience: Ambience }) {
+  const gltf = useGLTF(villaModel(mobile), true, true)
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene])
   const animatedWaterMaps = useRef(new Set<Texture>())
-  // 20 kB of detail maps buy the render surfaces micro-relief. Without them the
-  // plaster and concrete return a single flat value per face and the façade reads
-  // as an untextured massing model however good the lighting is.
-  const [plasterNormal, plasterRoughness, stoneNormal] = useTexture([
+  const ledMaterials = useRef<MeshStandardMaterial[]>([])
+  const [plasterNormal, plasterRoughness, stoneNormal, woodGrain] = useTexture([
     '/assets/materials/detail/plaster-normal.webp',
     '/assets/materials/detail/plaster-roughness.webp',
     '/assets/materials/detail/stone-normal.webp',
+    '/assets/materials/detail/wood-grain.webp',
   ])
 
   useLayoutEffect(() => {
     animatedWaterMaps.current.clear()
+    const anisotropy = mobile ? 2 : 8
 
-    // The villa ships real photographic stone and travertine maps. The walls,
-    // cheeks, treads and paving authored in Blender only had a flat tint plus a
-    // detail normal, which is why they read as pale card next to the building.
-    // Borrowing the building's own maps makes the new masonry the same material.
     const donors = new Map<string, MeshStandardMaterial>()
     scene.traverse((child) => {
       if (!(child instanceof Mesh)) return
@@ -52,10 +81,10 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
         if (material instanceof MeshStandardMaterial && material.map) donors.set(material.name, material)
       }
     })
-    const stoneDonor = donors.get('rock_wall_11_disp_2k')
     // Travertine, not the stone pathway: the pathway albedo is a dark grey and it
     // turned every tread near-black.
     const paveDonor = donors.get('KAYDAN_TRAVERTINE') ?? donors.get('stone_pathway_02')
+    const grassDonor = donors.get('Ground003')
 
     const borrow = (target: MeshStandardMaterial, donor: MeshStandardMaterial | undefined, repeat: number, tint: string, mix: number) => {
       if (!donor?.map) return
@@ -66,7 +95,7 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
         clone.wrapS = RepeatWrapping
         clone.wrapT = RepeatWrapping
         clone.repeat.set(repeat, repeat)
-        clone.anisotropy = mobile ? 2 : 8
+        clone.anisotropy = anisotropy
         clone.needsUpdate = true
         target[slot] = clone
       }
@@ -75,71 +104,106 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
       target.needsUpdate = true
     }
 
-    for (const texture of [plasterNormal, plasterRoughness, stoneNormal]) {
+    const detail = (texture: Texture, repeatX: number, repeatY = repeatX) => {
+      const clone = texture.clone()
+      clone.wrapS = RepeatWrapping
+      clone.wrapT = RepeatWrapping
+      clone.repeat.set(repeatX, repeatY)
+      clone.anisotropy = anisotropy
+      clone.needsUpdate = true
+      return clone
+    }
+
+    woodGrain.colorSpace = NoColorSpace
+    for (const texture of [plasterNormal, plasterRoughness, stoneNormal, woodGrain]) {
       texture.wrapS = RepeatWrapping
       texture.wrapT = RepeatWrapping
-      texture.anisotropy = mobile ? 2 : 8
+      texture.anisotropy = anisotropy
     }
+
     scene.traverse((child) => {
       if (!(child instanceof Mesh)) return
-      // Only meshes big enough to throw a readable shadow are casters. Every mesh
-      // casting meant a second full draw of 331 objects into the shadow map, which
-      // is most of what pushed the frame to 951 calls.
+      const materials = (Array.isArray(child.material) ? child.material : [child.material]) as MeshStandardMaterial[]
+      const glazed = materials.some((material) => GLAZING.test(material.name) || material.transparent)
+
+      // Only meshes big enough to throw a readable shadow are casters, and never
+      // glazing: a pane that casts kept every room in the villa's own shadow, so
+      // no patch of sun ever reached an interior floor.
+      // World radius: the meshopt-quantised geometry is stored in normalised
+      // units and scaled back by its node, so the local radius alone is meaningless.
       child.geometry.computeBoundingSphere()
-      const radius = child.geometry.boundingSphere?.radius ?? 0
-      child.castShadow = !mobile && radius > .55
-      child.receiveShadow = true
+      child.updateWorldMatrix(true, false)
+      const radius = (child.geometry.boundingSphere?.radius ?? 0) * child.matrixWorld.getMaxScaleOnAxis()
+      child.castShadow = !mobile && !glazed && radius > .35
+      child.receiveShadow = !glazed
       child.frustumCulled = true
 
-      const materials = Array.isArray(child.material) ? child.material : [child.material]
       for (const material of materials) {
         if (!(material instanceof MeshStandardMaterial)) continue
+        // Materials are shared with the GLTF cache: prepare once, never compound.
+        if (material.userData.kdPrepared) continue
+        material.userData.kdPrepared = true
         const name = material.name
-        if (material.map) material.map.anisotropy = mobile ? 2 : 8
-        material.envMapIntensity = REFLECTIVE.test(name) ? 1.45 : .9
+        if (material.map) material.map.anisotropy = anisotropy
+        material.envMapIntensity = REFLECTIVE.test(name) ? 1.3 : .95
 
-        if (GLASS.test(name)) {
-          // The GLB exports glazing as metalness 1 / roughness 0 — a perfect
-          // mirror, which is why every window read as a grey panel with nothing
-          // behind it. Plain transparency (rather than `transmission`) shows the
-          // rooms through the glass without paying for a transmission pass.
-          material.metalness = 0
-          material.roughness = .055
-          material.color.set('#dce4e7')
-          material.transparent = true
-          material.opacity = .26
-          material.envMapIntensity = 1.5
-          if (material instanceof MeshPhysicalMaterial) {
-            material.ior = 1.52
-            material.specularIntensity = 1
-            material.transmission = 0
-          }
+        if (GLAZING.test(name)) {
+          makeArchitecturalGlass(material, name === '911Glass'
+            ? { tint: .32, color: '#1b2024' }
+            : name === 'Glassend' ? { tint: .2, color: '#8fb3a4' } : { tint: .06, color: '#c3d1d4' })
+          if (material instanceof MeshPhysicalMaterial) material.transmission = 0
+          continue
         }
-        if (FALSE_METAL.test(name)) {
+
+        // Luxury palette: off-white render, honed limestone, pale paving.
+        // Material.001 was also exported as metalness 1 by mistake.
+        if (name === 'Material.001' || name === 'KAYDAN_PLASTER_IVORY') {
           material.metalness = 0
-          material.roughness = .68
+          material.roughness = .82
+          material.color.set(name === 'Material.001' ? '#efebe4' : '#f3f0ea')
+          // The GLB's render texture is a mid grey (sRGB 141 on average): it
+          // dragged every "white" wall down to concrete. Grain comes from the
+          // relief map and the variation shader instead.
+          material.map = null
         }
-        if (/^KAYDAN_FRONT_STONE$/.test(name)) borrow(material, stoneDonor, 2.2, '#4a463f', .58)
-        if (/^KAYDAN_FRONT_STONE_WARM$/.test(name)) borrow(material, stoneDonor, 1.7, '#9a9184', .3)
-        if (/^KAYDAN_TREAD$/.test(name)) borrow(material, paveDonor, 1.2, '#b8b2a7', .22)
-        if (/^KAYDAN_PAVING$/.test(name)) borrow(material, paveDonor, 5.5, '#8d877e', .38)
+        if (/^(rock_wall_11_disp_2k|KAYDAN_FRONT_STONE|KAYDAN_FRONT_STONE_WARM)$/.test(name)) {
+          // Rubble stone out, honed limestone in: a fine mineral grain (the
+          // plaster detail) under panel joints drawn by the variation shader.
+          material.map = null
+          material.color.set(name === 'KAYDAN_FRONT_STONE' ? '#cdbfa8' : '#d9ccb6')
+          material.normalMap = detail(plasterNormal, 4)
+          material.normalScale = new Vector2(.35, .35)
+          material.roughnessMap = detail(plasterRoughness, 4)
+          material.roughness = .62
+        }
+        if (name === 'KAYDAN_TREAD') borrow(material, paveDonor, 1.2, '#ebe5da', .5)
+        if (name === 'KAYDAN_PAVING' || name === 'stone_pathway_02') borrow(material, paveDonor, 5.5, '#e2dbcf', .55)
+        // The lawn strips were a flat green: borrow the hillside's photographic
+        // grass at a finer scale and pull it towards a watered green.
+        if (name === 'KAYDAN_LAWN') borrow(material, grassDonor, 9, '#3f5a26', .72)
         if (AUTHORED.test(name)) {
-          // Roughness 1 with a roughness map still multiplies to fully matt.
-          material.roughness = /TREAD|PAVING/.test(name) ? .52 : .68
-          material.envMapIntensity = 1.15
-          // The treads were the brightest thing in the hero, so the eye landed on
-          // the stair before the house. Knocking them back puts the villa first.
-          if (/TREAD/.test(name) && !material.map) material.color.lerp(new Color('#6f6a62'), .52)
-          if (/PAVING/.test(name) && !material.map) material.color.lerp(new Color('#55524d'), .3)
+          material.roughness = /TREAD|PAVING/.test(name) ? .52 : /LAWN|SOIL/.test(name) ? .95 : .62
+          material.envMapIntensity = 1.05
         }
-        if (/^WindowFrame$/.test(name)) {
-          material.roughness = .38
-          material.color.lerp(new Color('#cfd2d4'), .45)
+        if (name === 'WindowFrame') {
+          // Anodised anthracite frames, as on the reference villas, instead of pale plastic.
+          material.color.set('#3a3b3d')
+          material.metalness = .55
+          material.roughness = .42
+        }
+        if (/^(KAYDAN_DARKWOOD|KAYDAN_UPPER_OAK)$/.test(name) && !material.map) {
+          // Authored with a flat tint only: borrow a real grain as a luminance map.
+          material.map = detail(woodGrain, name === 'KAYDAN_UPPER_OAK' ? 3 : 1.5)
+          material.color.multiplyScalar(1.3)
+          material.roughness = .62
         }
         if (WATER.test(name)) {
-          material.color.set('#72aeb7')
-          material.roughness = .12
-          material.metalness = .08
+          material.userData.kdPool = true
+          material.emissive = new Color('#1fa9bd')
+          material.emissiveIntensity = 0
+          material.color.set('#5f9fa8')
+          material.roughness = .06
+          material.metalness = .02
           const waterMap = material.normalMap ?? material.map
           if (waterMap) {
             waterMap.wrapS = RepeatWrapping
@@ -147,53 +211,99 @@ export function ExteriorVilla({ mobile }: { mobile: boolean }) {
             animatedWaterMaps.current.add(waterMap)
           }
         }
-        if (SOFT.test(name)) material.roughness = .88
-        if (STONE.test(name)) material.roughness = .74
+        if (SOFT.test(name)) material.roughness = .9
 
-        // Detail maps are only applied where the GLB supplies none of its own, so
-        // nothing that is already textured gets overwritten.
-        if (PLASTER.test(name) && !material.normalMap) {
-          material.normalMap = plasterNormal.clone()
-          material.normalMap.repeat.set(9, 9)
-          material.normalMap.needsUpdate = true
-          material.normalScale = new Vector2(.34, .34)
-          if (!material.roughnessMap) {
-            material.roughnessMap = plasterRoughness.clone()
-            material.roughnessMap.repeat.set(9, 9)
-            material.roughnessMap.needsUpdate = true
-          }
-          // A touch below fully matt so the volumes separate under a low sun.
-          material.roughness = .78
-          material.envMapIntensity = 1.05
+        // Micro-relief where the GLB supplies none of its own.
+        if (/^(Material\.001|KAYDAN_PLASTER_IVORY|KAYDAN_UPPER_PLASTER|material)$/.test(name) && !material.normalMap) {
+          const coarse = name === 'Material.001'
+          material.normalMap = detail(plasterNormal, coarse ? 6 : 9)
+          material.normalScale = new Vector2(coarse ? .45 : .34, coarse ? .45 : .34)
+          if (!material.roughnessMap) material.roughnessMap = detail(plasterRoughness, coarse ? 6 : 9)
+          material.roughness = coarse ? .78 : .8
         }
-        if (CONCRETE.test(name) && !material.normalMap) {
-          // An anisotropic repeat stretches the plaster grain into horizontal
-          // board marks, which is what stops a 10 m concrete face reading as a
-          // single flat tone.
-          material.normalMap = plasterNormal.clone()
-          material.normalMap.repeat.set(3, 26)
-          material.normalMap.needsUpdate = true
-          material.normalScale = new Vector2(.28, .48)
-          material.roughness = .74
-          material.envMapIntensity = 1.1
+        if (name === 'KAYDAN_TRAVERTINE' && !material.normalMap) {
+          material.normalMap = detail(stoneNormal, 6)
+          material.normalScale = new Vector2(.45, .45)
         }
-        if (MASONRY.test(name) && !material.normalMap) {
-          material.normalMap = stoneNormal.clone()
-          material.normalMap.repeat.set(6, 6)
-          material.normalMap.needsUpdate = true
-          material.normalScale = new Vector2(.55, .55)
-          material.envMapIntensity = 1.0
-        }
+        if (/Rock0/.test(name)) material.roughness = .82
+        // Lenses, LED strips and lamp shades: their strength follows day/night.
+        if (material.emissive && material.emissive.getHex() !== 0) material.userData.kdEmissive = material.emissiveIntensity
         if (FOLIAGE.test(name)) {
-          // Cut-out leaves: without an alpha test they render as opaque cards.
           material.alphaTest = .35
           material.side = DoubleSide
-          material.roughness = .84
+          material.roughness = .78
+          material.envMapIntensity = .75
         }
+
+        const recipe = VARIATION.find(([pattern]) => pattern.test(name))
+        if (recipe) applyVariation(material, recipe[1])
         material.needsUpdate = true
       }
     })
-  }, [mobile, scene, plasterNormal, plasterRoughness, stoneNormal])
+
+    // The clipped hedges along the forecourt were exported with the lawn
+    // material, so they read as boxes of turf. Anything lawn-clad that stands
+    // up off the ground gets a dense, dark boxwood instead.
+    scene.traverse((child) => {
+      if (!(child instanceof Mesh) || Array.isArray(child.material)) return
+      const lawn = child.material as MeshStandardMaterial
+      if (lawn.name !== 'KAYDAN_LAWN') return
+      child.geometry.computeBoundingBox()
+      const box = child.geometry.boundingBox!.clone().applyMatrix4(child.matrixWorld)
+      if (box.max.y - box.min.y < .3) return
+      let hedge = HEDGES.get(lawn)
+      if (!hedge) {
+        hedge = lawn.clone()
+        hedge.name = 'KD_HEDGE'
+        hedge.userData = { kdPrepared: true }
+        hedge.color.set('#62803f')
+        hedge.roughness = .9
+        hedge.normalScale = new Vector2(2.2, 2.2)
+        hedge.envMapIntensity = .7
+        if (hedge.map) hedge.map = detail(hedge.map, 3)
+        if (hedge.normalMap) hedge.normalMap = detail(hedge.normalMap, 3)
+        applyVariation(hedge, { scale: .45, albedo: .32, roughness: .05, hueDrift: .12 })
+        HEDGES.set(lawn, hedge)
+      }
+      child.material = hedge
+    })
+
+    // Upper storey: clear the purchased model's partitions out of the master
+    // bathroom and give the suite and the bathroom a real doorway off the
+    // landing, so the camera walks in instead of passing through plaster.
+    carveRoom(scene, BATHROOM_VOLUME)
+    openDoorway(scene, 'W_SUITE_E', { fromZ: 10.95, toZ: 12.1, height: 2.2 })
+    openDoorway(scene, 'W_BATH_E', { fromZ: 12.35, toZ: 13.4, height: 2.2 })
+    // The purchased model has no roof over that corner of the storey: the new
+    // bathroom looked straight up at the sky.
+    addCeiling(scene, 'W_BATH_E', BATHROOM_VOLUME, 9.9)
+
+    // Main entrance recomposed on the covered porch at the head of the stair.
+    scene.updateMatrixWorld(true)
+    const oak = detail(woodGrain, 1, 2.5)
+    oak.rotation = Math.PI / 2
+    const entrance = ENTRANCE_MATERIALS.get(woodGrain) ?? makeEntranceMaterials(oak)
+    ENTRANCE_MATERIALS.set(woodGrain, entrance)
+    buildEntrance(scene, entrance)
+    quietOldDoor(scene, SMOKED_PANEL)
+    addStairLeds(scene, entrance.led)
+    applyVariation(entrance.canopy as MeshStandardMaterial, { scale: 2.6, albedo: .04, roughness: .08 })
+    ledMaterials.current = [entrance.led as MeshStandardMaterial]
+  }, [mobile, scene, plasterNormal, plasterRoughness, stoneNormal, woodGrain])
+
+  // Day/night: intensities only — no material is recompiled.
+  useLayoutEffect(() => {
+    scene.traverse((child) => {
+      if (!(child instanceof Mesh)) return
+      for (const material of (Array.isArray(child.material) ? child.material : [child.material]) as MeshStandardMaterial[]) {
+        if (typeof material.userData.kdEmissive === 'number') material.emissiveIntensity = material.userData.kdEmissive * ambience.emissive
+        if (material.userData.kdPool) material.emissiveIntensity = ambience.pool * 1.1
+      }
+    })
+    for (const led of ledMaterials.current) led.emissiveIntensity = ambience.mode === 'night' ? 6 : 0
+    // By night the tall pane beside the tower reads as a lit hall behind it.
+    SMOKED_PANEL.emissiveIntensity = ambience.mode === 'night' ? .7 : 0
+  }, [scene, ambience])
 
   useFrame((_, delta) => {
     const speed = Math.min(delta, .05)
