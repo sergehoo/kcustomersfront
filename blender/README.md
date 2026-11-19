@@ -58,3 +58,30 @@ rebuilds with metric UVs and writes both the `.blend` and
 `assets-source/models/kaydan-villa-production.glb`. Run it on a blend that has
 not been restructured yet (the pre-restructuring copy is kept in
 `blender/backup-avant-restructuration-2026-11-19/`).
+
+## Large volumes
+
+`restructure_volumes.py` runs after the front script, in the same Blender
+session, so the whole villa is always rebuilt from the pre-restructuring blend:
+
+```bash
+blender -b blender/backup-avant-restructuration-2026-11-19/kaydan-villa-production.blend \
+  --python blender/scripts/restructure_front.py \
+  --python blender/scripts/restructure_volumes.py
+npm run optimize:production
+```
+
+It replaces the 0.8 m slab-and-upstand over the porch with a deep white frame
+around the upper volume (lintel, jambs, 22 cm balcony slab, frameless glass
+balcony on an anthracite shoe), restyles every railing to clear glass with an
+anthracite profile, opens the east wall (glazing, oak screen, upper bay) and
+gives the carport a bronze slatted door, a lit lintel and a paved floor.
+
+It also holds the upper floor's permanent geometry that the browser used to
+patch at load time: the purchased model's partitions, door, downstand and sill
+inside the master bathroom are deleted, the suite and bathroom get real
+doorways, and the bathroom its ceiling. Furniture stays modular.
+
+The east bank is cut with straight `bisect` planes before any face is
+deleted (the terrain's triangles are ~1.7 m), then held by a low wall, a
+planted shelf and an upper wall, with the natural bank behind.

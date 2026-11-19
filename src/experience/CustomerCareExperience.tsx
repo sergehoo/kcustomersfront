@@ -9,7 +9,8 @@ import { ExperienceOutro } from './ExperienceOutro'
 import { Scene } from './Scene'
 import { EXPERIENCE_SECTIONS, OUTRO_PROGRESS, SECTION_COUNT, SECTION_TOTAL, type ExperienceSection, type ExperienceSectionId } from './sections'
 import { useExperienceScroll } from './useExperienceScroll'
-import { useAmbience } from './ambience'
+import { useAmbienceControl } from './ambience'
+import { AmbienceToggle } from './AmbienceToggle'
 
 const StaticFallback = lazy(() => import('./StaticFallback'))
 
@@ -133,7 +134,7 @@ export function CustomerCareExperience() {
   const [debug3d] = useState(() => new URLSearchParams(window.location.search).get('debug3d') === 'true')
   const { active: assetsLoading, progress: assetsProgress, loaded, total } = useProgress()
   const [dismissed, setDismissed] = useState(false)
-  const ambience = useAmbience()
+  const { ambience, mode: ambienceMode, automatic: ambienceAutomatic, toggle: toggleAmbience } = useAmbienceControl()
   // Set once every shader is compiled (Scene → Warmup), so the curtain never
   // lifts on a frame that is still building its programs.
   const [sceneReady, setSceneReady] = useState(false)
@@ -179,6 +180,7 @@ export function CustomerCareExperience() {
     </div>
 
     <ExperienceOverlay progress={progress} section={section} moveTo={moveTo} moveToProgress={moveToProgress} />
+    {webgl === true && <AmbienceToggle mode={ambienceMode} automatic={ambienceAutomatic} onToggle={toggleAmbience} />}
     <div ref={ref} className="experience-scroll" aria-hidden="true"><div /></div>
   </div>
 }

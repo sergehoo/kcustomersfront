@@ -1,0 +1,10 @@
+/* Day / night switch, under the header on the right. Uses the brand tokens
+   from styles.css. */
+.ambience-toggle{position:fixed;top:96px;right:var(--kd-gutter);z-index:15;display:inline-flex;align-items:center;gap:2px;padding:4px;border:1px solid var(--kd-hairline);border-radius:var(--kd-r-pill);background:var(--kd-glass);backdrop-filter:var(--kd-blur);box-shadow:var(--kd-shadow);color:var(--kd-cream-dim);cursor:pointer;font:500 12px var(--kd-body)}
+.ambience-toggle-option{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:var(--kd-r-pill);transition:background .22s,color .22s}
+.ambience-toggle-option.is-active{background:var(--kd-cream);color:var(--kd-ink)}
+.ambience-toggle:hover .ambience-toggle-option:not(.is-active){color:var(--kd-cream)}
+.ambience-toggle-auto{position:absolute;top:calc(100% + 6px);right:12px;color:var(--kd-cream-faint);font:500 10px var(--kd-mono);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;pointer-events:none}
+@media(max-width:1000px){.ambience-toggle{top:82px;right:22px}}
+@media(max-width:620px){.ambience-toggle{top:72px;right:16px;font-size:11px}.ambience-toggle-option{padding:6px 10px}}
+@media(prefers-reduced-motion:reduce){.ambience-toggle-option{transition:none}}

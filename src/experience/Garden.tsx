@@ -164,8 +164,9 @@ const ZONES: Zone[] = [
   { minX: 6.35, maxX: 7.15, minZ: 7.5, maxZ: 15.4, count: 12, mix: [['grass', 1]], seed: 2 },
   // Bed over the carport, west.
   { minX: -13.2, maxX: -2.9, minZ: 18.5, maxZ: 21.7, count: 30, mix: [['grass', .55], ['agave', .2], ['topiary', .25]], seed: 4 },
-  // East bank above the retaining wall.
-  { minX: 10.95, maxX: 15, minZ: 18.6, maxZ: 31, count: 34, mix: [['grass', .6], ['agave', .4]], seed: 6 },
+  // East wall in two steps: trailing grasses on the low shelf, agaves above.
+  { minX: 10.75, maxX: 11.75, minZ: 19.7, maxZ: 32.4, count: 22, mix: [['grass', .85], ['agave', .15]], seed: 16 },
+  { minX: 12.1, maxX: 15, minZ: 18.6, maxZ: 31, count: 28, mix: [['grass', .55], ['agave', .45]], seed: 6 },
   // West lawn: clipped spheres only.
   { minX: -12.7, maxX: -8.0, minZ: 23, maxZ: 32.2, count: 7, mix: [['topiary', 1]], seed: 7 },
 ]

@@ -1,9 +1,8 @@
 import { useGLTF, useTexture } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useRef } from 'react'
-import { Box3, Color, DoubleSide, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, Texture, Vector2, Vector3 } from 'three'
+import { Color, DoubleSide, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, NoColorSpace, RepeatWrapping, Texture, Vector2 } from 'three'
 import type { Ambience } from './ambience'
-import { addCeiling, carveRoom, openDoorway } from './realism/carve'
 import { makeArchitecturalGlass } from './realism/glass'
 import { applyVariation, type VariationOptions } from './realism/materialVariation'
 
@@ -48,8 +47,6 @@ const VARIATION: [RegExp, VariationOptions][] = [
   [/^KAYDAN_UPPER_MARBLE$/, { scale: 1.5, albedo: .04, roughness: .08 }],
 ]
 
-/** Interior of the master bathroom built by `blender/scripts/build_upper_floor.py`. */
-const BATHROOM_VOLUME = new Box3(new Vector3(-7.9, 6.95, 12.42), new Vector3(-2.02, 9.55, 15.83))
 
 /** One boxwood material per source lawn material, shared across remounts. */
 const HEDGES = new WeakMap<MeshStandardMaterial, MeshStandardMaterial>()
@@ -157,7 +154,9 @@ export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience:
         if (name === 'Material.001' || name === 'KAYDAN_PLASTER_IVORY' || name === 'KAYDAN_RENDER_WHITE') {
           material.metalness = 0
           material.roughness = .82
-          material.color.set(name === 'KAYDAN_PLASTER_IVORY' ? '#f3f0ea' : '#efebe4')
+          // Ivory / off-white rather than clinical white: it is what lets the
+          // render take the sun warmly and separates it from the white sky.
+          material.color.set(name === 'KAYDAN_PLASTER_IVORY' ? '#f1ebe0' : '#eee7db')
           // The GLB's render texture is a mid grey (sRGB 141 on average): it
           // dragged every "white" wall down to concrete. Grain comes from the
           // relief map and the variation shader instead.
@@ -298,16 +297,9 @@ export function ExteriorVilla({ mobile, ambience }: { mobile: boolean; ambience:
       }
       child.material = hedge
     })
-
-    // Upper storey: clear the purchased model's partitions out of the master
-    // bathroom and give the suite and the bathroom a real doorway off the
-    // landing, so the camera walks in instead of passing through plaster.
-    carveRoom(scene, BATHROOM_VOLUME)
-    openDoorway(scene, 'W_SUITE_E', { fromZ: 10.95, toZ: 12.1, height: 2.2 })
-    openDoorway(scene, 'W_BATH_E', { fromZ: 12.35, toZ: 13.4, height: 2.2 })
-    // The purchased model has no roof over that corner of the storey: the new
-    // bathroom looked straight up at the sky.
-    addCeiling(scene, 'W_BATH_E', BATHROOM_VOLUME, 9.9)
+    // The upper floor's partitions, doorways and bathroom ceiling are part of
+    // the model now (blender/scripts/restructure_volumes.py): nothing is
+    // patched here at load time any more.
   }, [mobile, scene, plasterNormal, plasterRoughness, stoneNormal, woodGrain])
 
   // Day/night: intensities only — no material is recompiled.

@@ -55,6 +55,11 @@ STAIR_X1 = AXIS + STAIR_W / 2              # 5.425
 WEST_EDGE = -1.60                          # pedestrian composition, west limit
 EAST_EDGE = 10.45                          # and east limit (retaining wall face)
 FENCE_Z = 33.0
+# East bank, held in two steps (see build_tiers): low wall, planted shelf,
+# upper wall, then the natural bank.
+EAST_Z0 = LANDING_FRONT + .25
+EAST_LOW_TOP, EAST_SHELF_X = 1.55, EAST_EDGE + 1.35
+EAST_HIGH_TOP, EAST_HIGH_X = 2.75, EAST_EDGE + 1.6
 
 
 def B(x, y, z):
@@ -200,7 +205,7 @@ REMOVED = []
 # Every element of the previous approaches, by the names the build scripts gave them.
 DEMOLISH_PREFIXES = (
     'STEP_', 'STAIR_LANDING', 'CHEEK_', 'STEPLIGHT_', 'ARRIVAL_', 'BED_STAIR_',
-    'TERRACE_E_', 'TERRACE_W_', 'FOUND_', 'FORECOURT', 'DRIVEWAY', 'HEDGE_', 'BOLLARD',
+    'TERRACE_E_', 'TERRACE_W_', 'FOUND_', 'RETAIN_E', 'FORECOURT', 'DRIVEWAY', 'HEDGE_', 'BOLLARD',
     'GATE_', 'FENCE_', 'PIER_END', 'INTERCOM', 'CROSSOVER', 'LAWN_W', 'LAWN_E',
     # The decorative timber panel and its chrome bars left of the tower, and the
     # recessed porch window the new entrance replaces.
@@ -277,12 +282,59 @@ def delete_faces(name, predicate):
     return len(doomed)
 
 
+def bisect(name, axis, value):
+    """Cuts a merged mesh along the vertical plane x = value or z = value
+    (glTF), so the deletion that follows stops on a straight line instead of
+    on the nearest edges of a coarse terrain (its triangles are ~1.7 m)."""
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        return
+    if obj.data.users > 1:
+        obj.data = obj.data.copy()
+    world = obj.matrix_world
+    point = B(value, 0, 0) if axis == 'x' else B(0, 0, value)
+    normal = Vector((1, 0, 0)) if axis == 'x' else Vector((0, 1, 0))
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bmesh.ops.bisect_plane(
+        bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+        plane_co=world.inverted() @ point,
+        plane_no=(world.to_3x3().transposed() @ normal).normalized(),
+    )
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+
+
+def settle_east_bank():
+    """Brings the terrain's cut edge behind the upper east wall just under its
+    coping, so the bank rises from the wall instead of overtopping it."""
+    obj = bpy.data.objects['Plane.003_Ground003_0']
+    world, inverse = obj.matrix_world, obj.matrix_world.inverted()
+    level = EAST_HIGH_TOP - .06
+    for vertex in obj.data.vertices:
+        w = world @ vertex.co
+        if abs(w.x - EAST_HIGH_X) < .01 and -w.y > EAST_Z0 + .01 and w.z > level:
+            w.z = level
+            vertex.co = inverse @ w
+    obj.data.update()
+
+
 def demolish_terrain():
     # The purchased model's own front steps and terrace lip (the diagonal stair
     # that showed through the lawn).
     delete_faces('Plane_Concrete048_0', lambda x, y, z: WEST_EDGE - .7 <= x <= EAST_EDGE + .3 and z >= 17.45 and y < 3.85)
+    # Straight cuts first: the east parapet line, the upper east wall and the
+    # front of the landing, so no deletion bites into the bank beyond them.
+    bisect('Plane.003_Ground003_0', 'x', EAST_EDGE + .25)
+    bisect('Plane.003_Ground003_0', 'x', EAST_HIGH_X)
+    bisect('Plane.003_Ground003_0', 'z', EAST_Z0)
     # The grassed banks either side of the old stairs, down to the fence.
-    delete_faces('Plane.003_Ground003_0', lambda x, y, z: WEST_EDGE - .3 <= x <= EAST_EDGE + .25 and 17.6 <= z <= FENCE_Z + .2)
+    delete_faces('Plane.003_Ground003_0', lambda x, y, z: WEST_EDGE - .3 <= x < EAST_EDGE + .25 and 17.6 <= z <= FENCE_Z + .2)
+    # Room for the two-step east wall and its planted shelf; the bank beyond
+    # the upper wall stays natural terrain.
+    delete_faces('Plane.003_Ground003_0', lambda x, y, z: EAST_EDGE + .25 < x < EAST_HIGH_X and EAST_Z0 < z <= FENCE_Z + .2)
+    settle_east_bank()
     # ...and the terrain that poked through the new west lawn.
     delete_faces('Plane.003_Ground003_0', lambda x, y, z: -18.7 <= x < WEST_EDGE - .3 and 22.3 <= z <= FENCE_Z + .2 and y < 1.4)
     # Stone edges of those banks, including the diagonal wall across the forecourt.
@@ -357,8 +409,34 @@ def build_tiers():
     box('TIER_SIDE_W_HIGH', WEST_EDGE - .25, WEST_EDGE, PARVIS_Y, ENTRY_Y, 17.6, LANDING_FRONT + .25, RENDER)
     box('TIER_SIDE_W_MID', WEST_EDGE - .25, WEST_EDGE, PARVIS_Y, MID_Y + .05, LANDING_FRONT + .25, MID_START + .25, RENDER)
     box('TIER_SIDE_W_LOW', WEST_EDGE - .25, WEST_EDGE, PARVIS_Y, 1.18, MID_START + .25, STAIR_FOOT - .27, RENDER)
-    box('EAST_RETAINING_WALL', EAST_EDGE, EAST_EDGE + .25, PARVIS_Y, 2.9, LANDING_FRONT + .25, FENCE_Z - .15, RENDER)
-    box('EAST_RETAINING_CAP', EAST_EDGE - .02, EAST_EDGE + .27, 2.9, 2.96, LANDING_FRONT + .25, FENCE_Z - .15, TRAVERTINE)
+    # East bank held in two steps instead of one 2.2 m screen: a low wall
+    # (0.85 m above the parvis), a planted shelf, then a second wall and the bank.
+    z0, z1 = EAST_Z0, FENCE_Z - .15
+    low_top, shelf_x, high_top, high_x = EAST_LOW_TOP, EAST_SHELF_X, EAST_HIGH_TOP, EAST_HIGH_X
+    # The north end closes the shelf against the side yard (≈3.5) at the
+    # height of the landing's slab, so the two read as one plinth.
+    end_top = ENTRY_Y - .22
+    # The upper wall runs to the street like the fence; the shelf is closed
+    # there by a low return in the fence's line.
+    street = FENCE_Z + .15
+    boxes('EAST_WALLS', [
+        (EAST_EDGE, EAST_EDGE + .25, PARVIS_Y, low_top, z0, z1),
+        (shelf_x, high_x, PARVIS_Y, high_top, z0, street),
+        (EAST_EDGE + .25, high_x, PARVIS_Y, end_top, LANDING_FRONT, z0),
+        (EAST_EDGE + .25, shelf_x, PARVIS_Y, low_top, z1, street),
+    ], RENDER)
+    boxes('EAST_WALL_CAPS', [
+        (EAST_EDGE - .02, EAST_EDGE + .27, low_top, low_top + .06, z0, z1),
+        (shelf_x - .02, high_x + .02, high_top, high_top + .06, z0, street + .02),
+        (EAST_EDGE + .25, high_x + .02, end_top, end_top + .06, LANDING_FRONT - .02, z0 + .02),
+        (EAST_EDGE + .25, shelf_x - .02, low_top, low_top + .06, z1 - .02, street + .02),
+    ], TRAVERTINE)
+    box('EAST_SHELF_BED', EAST_EDGE + .25, shelf_x, PARVIS_Y, low_top - .05, z0, z1, SOIL)
+    # Discreet LED under each coping, facing the parvis.
+    boxes('EAST_WALL_LEDS', [
+        (EAST_EDGE + .02, EAST_EDGE + .26, low_top - .02, low_top, z0 + .3, z1 - .3),
+        (shelf_x + .02, high_x, high_top - .02, high_top, z0 + .3, z1 - .3),
+    ], LED)
 
 
 # ── rebuild: parvis, driveway, gates ─────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 /**
  * Day / night, decided from the visitor's own clock.
@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react'
  * intensities, colours and visibility change — so switching never changes the
  * light count and never recompiles a shader.
  *
- * `?ambience=day|night` forces a mode (QA, marketing captures).
+ * `?ambience=day|night` forces the starting mode (QA, marketing captures);
+ * the visitor can still flip it with the on-page toggle.
  */
 export type AmbienceMode = 'day' | 'night'
 
@@ -83,15 +84,29 @@ function forcedMode(): AmbienceMode | null {
 }
 
 /**
- * Resolved once at load, then re-checked every five minutes so a visit that
- * straddles 19:00 follows the evening — a change of intensities only.
+ * The mode follows the visitor's clock (re-checked every five minutes, so a
+ * visit that straddles 19:00 follows the evening) unless they flip it by hand.
+ * A manual choice that lands back on the clock's own mode returns to "auto",
+ * so the toggle never leaves the visit stuck against the time of day.
  */
-export function useAmbience(): Ambience {
-  const [mode, setMode] = useState<AmbienceMode>(() => forcedMode() ?? modeAt())
+export function useAmbienceControl() {
+  const forced = forcedMode()
+  const [clock, setClock] = useState<AmbienceMode>(() => forced ?? modeAt())
+  const [manual, setManual] = useState<AmbienceMode | null>(null)
   useEffect(() => {
-    if (forcedMode()) return
-    const timer = window.setInterval(() => setMode(modeAt()), 5 * 60 * 1000)
+    if (forced) return
+    const timer = window.setInterval(() => setClock(modeAt()), 5 * 60 * 1000)
     return () => window.clearInterval(timer)
-  }, [])
-  return AMBIENCES[mode]
+  }, [forced])
+  const mode = manual ?? clock
+  const toggle = useCallback(() => {
+    const next: AmbienceMode = mode === 'day' ? 'night' : 'day'
+    setManual(next === clock ? null : next)
+  }, [mode, clock])
+  // "Automatic" means the visitor's clock — not a mode forced by ?ambience=.
+  return { ambience: AMBIENCES[mode], mode, automatic: manual === null && !forced, toggle }
+}
+
+export function useAmbience(): Ambience {
+  return useAmbienceControl().ambience
 }

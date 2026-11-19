@@ -1,6 +1,7 @@
 import { PerformanceMonitor } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { Suspense, useEffect, useState } from 'react'
+import { HalfFloatType, WebGLRenderTarget } from 'three'
 import { CameraRig } from './CameraRig'
 import { Debug3D } from './Debug3D'
 import { ExteriorVilla, villaModel } from './ExteriorVilla'
@@ -21,8 +22,27 @@ function Warmup({ onReady }: { onReady: () => void }) {
   const { gl, scene, camera } = useThree()
   useEffect(() => {
     let cancelled = false
-    gl.compileAsync(scene, camera).catch(() => undefined).then(() => { if (!cancelled) onReady() })
-    return () => { cancelled = true }
+    // A frame later, so meshes a component attaches in a follow-up render
+    // (the stair's riser glow) are in the scene too.
+    const frame = requestAnimationFrame(() => {
+      // Frames are drawn into the composer's linear buffer, not the canvas.
+      // Compiling against the canvas built every program for sRGB output, so
+      // each was built again on first use — and the night-only materials,
+      // hidden by day, on the first switch to night.
+      const target = new WebGLRenderTarget(1, 1, { type: HalfFloatType })
+      const previous = gl.getRenderTarget()
+      gl.setRenderTarget(target)
+      const compiling = gl.compileAsync(scene, camera)
+      gl.setRenderTarget(previous)
+      compiling.catch(() => undefined).then(() => {
+        target.dispose()
+        if (!cancelled) onReady()
+      })
+    })
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
+    }
   }, [gl, scene, camera, onReady])
   return null
 }
