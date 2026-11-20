@@ -4,7 +4,7 @@ Modern luxury, quiet: a few well-chosen pieces per room, each placed for the
 camera — never in a passage the visit crosses.
 
 * Living: a low bouclé sofa facing the fireplace wall, two mid-century lounge
-  chairs, a stone-and-oak coffee table, side table, floor lamp, cushions,
+  chairs facing each other across the coffee table, a stone-and-oak coffee table, side table, floor lamp, cushions,
   throw, books and ceramics, sheer curtains on the bay, a canvas on the
   fireplace wall.
 * Dining: centrepiece, candles, a linear pendant, a canvas on the stone wall.
@@ -480,8 +480,10 @@ def curtain(name, width, top, bottom, centre_x, z, axis='x', folds=7, depth=.05)
 def living():
     remove_prefix('Sphere.001_')                     # the old two-disc coffee table
     sofa('Living_Sofa_Main', 2.8, 1.0, (-2.95, F0, 11.15), (1, 0), SOFA, DARKWOOD)
-    chair = import_ph('mid_century_lounge_chair', 'Living_Armchair_South', (-1.0, F0, 9.8), (-.75, .66))
-    import_ph(None, 'Living_Armchair_North', (-1.0, F0, 12.45), (-.75, -.66), source=chair)
+    # The two lounge chairs face each other across the coffee table, 30 cm
+    # off its ends, closing the conversation square the sofa opens.
+    chair = import_ph('mid_century_lounge_chair', 'Living_Armchair_South', (-1.62, F0, 9.62), (0, 1))
+    import_ph(None, 'Living_Armchair_North', (-1.62, F0, 12.62), (0, -1), source=chair)
     table = import_ph('modern_coffee_table_01', 'Living_CoffeeTable', (-1.62, F0, 11.12), (1, 0))
     top = surface(-1.62, 11.12, F0 + 1) or F0 + .39
     import_ph('ceramic_vase_02', 'Living_Vase', (-1.62, top, 10.72))

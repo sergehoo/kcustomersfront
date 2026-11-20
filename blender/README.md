@@ -96,6 +96,7 @@ blender -b blender/backup-avant-restructuration-2026-11-19/kaydan-villa-producti
   --python blender/scripts/restructure_front.py \
   --python blender/scripts/restructure_volumes.py \
   --python blender/scripts/furnish_interiors.py \
+  --python blender/scripts/refine_details.py \
   --python blender/scripts/camera_shots.py \
   --python blender/scripts/merge_furniture.py
 npm run optimize:production
@@ -108,6 +109,13 @@ and pieces built in place (sofas, cushions, curtains, canvases, books, stools,
 lamps). It also applies the upper floor's bevel/subdivision modifiers, which the
 glTF export ignores, slides one leaf of the south bay open, and gives the
 camera's subjects readable names (`Kitchen_Island_*`, `Dining_Table_*`…).
+
+`refine_details.py` rebuilds the pieces seen closest: the freestanding tub and
+its floor-standing filler, the shower's wet wall and fittings (mixer, rain
+head, hand shower, niche, linear drain), and both beds' soft goods — duvet,
+turned-down band and runner draped by a cloth simulation, shaped pillows, a
+linen weave. The shots aimed at those pieces have pinned targets
+(`PINNED` in `camera_shots.py`), so remodelling them never moves a framing.
 
 `camera_shots.py` holds the visit's compositions: per room an overview and
 focus shots, each aimed at a `TARGET_*` anchor on real furniture, and the

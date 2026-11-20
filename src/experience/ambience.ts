@@ -34,7 +34,14 @@ export type Ambience = {
   decals: number
   /** Turquoise underwater glow of the pool. */
   pool: number
+  /** Exposure on the open hillside. */
   exposure: number
+  /**
+   * Exposure indoors, relative to the hillside. By day the rooms take a touch
+   * more (lit through the openings); by night the lamps are the light source,
+   * so the blue-hour push is taken back off rather than compounded on them.
+   */
+  interiorExposure: number
   bloom: number
 }
 
@@ -48,10 +55,11 @@ export const AMBIENCES: Record<AmbienceMode, Ambience> = {
     lamps: 1,
     facade: 0,
     steps: .35,
-    emissive: .6,
+    emissive: .45,
     decals: 0,
     pool: 0,
     exposure: 1,
+    interiorExposure: 1.12,
     bloom: .32,
   },
   night: {
@@ -60,14 +68,15 @@ export const AMBIENCES: Record<AmbienceMode, Ambience> = {
     environment: .14,
     key: { color: '#9db2e6', intensity: .07 },
     nightFill: .55,
-    lamps: 4.2,
+    lamps: 2.1,
     facade: 2.4,
     steps: 2.6,
-    emissive: 5,
+    emissive: 2.2,
     decals: 1,
     pool: 1,
     exposure: 1.18,
-    bloom: .8,
+    interiorExposure: .82,
+    bloom: .45,
   },
 }
 

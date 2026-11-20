@@ -255,7 +255,21 @@ def ray(origin, direction, distance=200.0, skip_glass=True):
     return None
 
 
+# Aims frozen when their pieces were remodelled (refine_details.py, lounge
+# chairs face to face): the validated framings keep their target whatever the
+# new bounding boxes. The prefixes above still say which hits are the subject.
+PINNED = {
+    'LIVING_SOFA': (-1.973, 4.324, 11.125),
+    'MASTER_BED': (-4.9, 7.875, 10.448),
+    'BATH_TUB': (-6.611, 7.416, 15.05),
+    'BATH_SHOWER': (-2.95, 8.017, 14.55),
+    'BEDROOM_BED': (3.53, 7.863, 10.669),
+}
+
+
 def anchor_point(name):
+    if name in PINNED:
+        return Vector(PINNED[name])
     spec = ANCHORS[name]
     if isinstance(spec[0], (int, float)):
         return Vector(spec)

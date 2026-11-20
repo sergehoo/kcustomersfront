@@ -37,8 +37,11 @@ const LAMPS = [
   { position: [-3.8, 6.35, 11.0] as const, color: '#ffcb8c', intensity: 16, distance: 9 },
   { position: [2.8, 6.25, 8.9] as const, color: '#ffd09a', intensity: 12, distance: 8 },
   { position: [-7.6, 5.7, 7.0] as const, color: '#f8c184', intensity: 10, distance: 7 },
-  { position: [1.0, 6.6, 14.2] as const, color: '#ffd7a8', intensity: 9, distance: 7 },
+  // Foot of the stair: kept soft, it sits two metres from the climbing camera.
+  { position: [1.0, 6.6, 14.2] as const, color: '#ffd7a8', intensity: 6, distance: 7 },
   { position: [-1.0, 8.9, 11.5] as const, color: '#ffd2a0', intensity: 12, distance: 8 },
+  // Hall, over the console: the only room no other fitting reached.
+  { position: [4.6, 6.4, 14.0] as const, color: '#ffd3a0', intensity: 7, distance: 6 },
 ]
 
 /**
@@ -57,6 +60,12 @@ const FACADE_LIGHTS = [
 
 /** Down the main stair, on its axis (x 4.225), with the LED strips under the nosings. */
 const STEP_LIGHTS = [[4.225, 1.5, 24.7] as const, [4.225, 2.75, 22.46] as const, [4.225, 4.25, 18.8] as const]
+
+/** Interior bounce: pale stone by day, the lamps' warm spill by night. */
+const BOUNCE = {
+  day: { sky: new Color('#f3efe8'), ground: new Color('#c9b393') },
+  night: { sky: new Color('#ffd8ac'), ground: new Color('#a8845a') },
+}
 
 /** Underwater pool light: turquoise bounce on the south terrace at night. */
 const POOL_LIGHT = { position: [2.4, 3.1, .4] as const, color: '#58d2e4', intensity: 26, distance: 11 }
@@ -101,16 +110,24 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
       else key.current.color.copy(look.color)
       key.current.intensity = look.intensity * ambience.key.intensity
     }
-    if (nightFill.current) nightFill.current.intensity = ambience.nightFill
+    // The blue-hour sky light is an exterior fill: indoors it greyed every wall.
+    if (nightFill.current) nightFill.current.intensity = ambience.nightFill * (1 - inside * (mobile ? 1 : .8))
     if (pool.current) pool.current.intensity = POOL_LIGHT.intensity * ambience.pool
     // Indoors only: the light a pale stone floor throws back up at the
     // ceiling. Without it every ceiling went near-black under AO, the main
     // tell of a real-time interior.
-    if (bounce.current) bounce.current.intensity = inside * (night ? .2 : .75)
+    // By night it turns warm, as if thrown back from the lamps. Phones mount only
+    // the first three lamps, so there it carries the rooms those never reach
+    // (hall, stair, upper floor) instead of leaving them black.
+    if (bounce.current) {
+      bounce.current.intensity = inside * (night ? (mobile ? .8 : .14) : .4)
+      bounce.current.color.copy(night ? BOUNCE.night.sky : BOUNCE.day.sky)
+      bounce.current.groundColor.copy(night ? BOUNCE.night.ground : BOUNCE.day.ground)
+    }
     // Lamps are an accent in a daylight room, not its light source.
     // By night every lamp is on, seen from outside as much as from inside.
     lamps.current.forEach((light, index) => {
-      if (light) light.intensity = LAMPS[index].intensity * (night ? ambience.lamps : .25 + inside * .35)
+      if (light) light.intensity = LAMPS[index].intensity * (night ? ambience.lamps : .2 + inside * .2)
     })
     facade.current.forEach((light, index) => {
       if (light) light.intensity = FACADE_LIGHTS[index].intensity * ambience.facade * (night ? 1 : arrival)

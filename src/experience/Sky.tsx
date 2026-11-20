@@ -53,8 +53,11 @@ const STOPS: SkyStop[] = [
   { at: TOUR_MARKS.enter[0], sunAzimuth: 100, sunElevation: 33, skyIntensity: 1, envIntensity: .72, fog: '#c4ccd3' },
   // Swung round while the camera goes through the front door, so that indoors a
   // low afternoon sun comes through the south bay and lays real patches on the floors.
-  { at: TOUR_MARKS.enter[1], sunAzimuth: -76, sunElevation: 17, skyIntensity: 1, envIntensity: .9, fog: '#c4ccd3' },
-  { at: TOUR_MARKS.exit[0], sunAzimuth: -80, sunElevation: 17, skyIntensity: 1, envIntensity: .9, fog: '#c7cdd2' },
+  // The probe has no notion of walls: indoors it lit every surface as if under
+  // the open sky, which flattened the rooms. Turned down, the sun patches and
+  // the openings model the space again.
+  { at: TOUR_MARKS.enter[1], sunAzimuth: -76, sunElevation: 17, skyIntensity: 1, envIntensity: .55, fog: '#c4ccd3' },
+  { at: TOUR_MARKS.exit[0], sunAzimuth: -80, sunElevation: 17, skyIntensity: 1, envIntensity: .55, fog: '#c7cdd2' },
   { at: TOUR_MARKS.exit[1], sunAzimuth: -70, sunElevation: 26, skyIntensity: 1, envIntensity: .72, fog: '#c9cdd0' },
   { at: 1, sunAzimuth: -72, sunElevation: 24, skyIntensity: 1, envIntensity: .72, fog: '#cbcdcd' },
 ]

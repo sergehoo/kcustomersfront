@@ -323,7 +323,7 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
         if (typeof material.userData.kdEmissive === 'number') material.emissiveIntensity = material.userData.kdEmissive * ambience.emissive
         if (material.userData.kdPool) material.emissiveIntensity = ambience.pool * 1.1
         // Stair LED strips: off by day, the line that draws the way up by night.
-        if (material.userData.kdLed) material.emissiveIntensity = ambience.mode === 'night' ? 6 : 0
+        if (material.userData.kdLed) material.emissiveIntensity = ambience.mode === 'night' ? 3.5 : 0
         if (material.userData.kdEntryGlass) material.emissiveIntensity = ambience.mode === 'night' ? .75 : 0
       }
     })

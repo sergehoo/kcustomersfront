@@ -60,7 +60,7 @@ export function Scene({ progress, mobile, debug3d, onReady, ambience }: { progre
       onDecline={() => { if (!degraded) { setDegraded(true); setDpr(1) } }}
     />
     <DaylightSky progress={progress} mobile={mobile} degraded={degraded} ambience={ambience} />
-    <CameraRig progress={progress} mobile={mobile} exposure={ambience.exposure} />
+    <CameraRig progress={progress} mobile={mobile} exposure={ambience.exposure} interiorExposure={ambience.interiorExposure} />
     <Lighting progress={progress} mobile={mobile} ambience={ambience} />
     <ExteriorVilla mobile={mobile} ambience={ambience} progress={progress} />
     <Surroundings model={villaModel(mobile)} />

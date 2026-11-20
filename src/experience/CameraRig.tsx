@@ -41,7 +41,14 @@ function readCameraOverride() {
   return () => liveOverride
 }
 
-export function CameraRig({ progress, mobile, exposure = 1 }: { progress: number; mobile: boolean; exposure?: number }) {
+// Indoors the exposure eases to the ambience's interior value. It used to add
+// a third of a stop on top of an interior already lit by the full sky probe,
+// the floor bounce and the lamps: walls, bedding and marble burnt to a flat cream.
+function exposureAt(progress: number, exposure: number, interior: number) {
+  return MathUtils.lerp(1, interior, insideAt(progress)) * exposure
+}
+
+export function CameraRig({ progress, mobile, exposure = 1, interiorExposure = 1 }: { progress: number; mobile: boolean; exposure?: number; interiorExposure?: number }) {
   const { camera, pointer, gl, scene } = useThree()
   const raycaster = useMemo(() => new Raycaster(), [])
   const destination = useMemo(() => new Vector3(), [])
@@ -80,6 +87,8 @@ export function CameraRig({ progress, mobile, exposure = 1 }: { progress: number
 
     const override = readOverride?.()
     if (override) {
+      // A pinned QA frame is read at the exposure the visit would have settled on.
+      gl.toneMappingExposure = exposureAt(progress, exposure, interiorExposure)
       destination.copy(override.position)
       target.copy(override.target)
       destinationFov = override.fov
@@ -127,11 +136,7 @@ export function CameraRig({ progress, mobile, exposure = 1 }: { progress: number
       }
     }
 
-    // Interiors are lit by the sky through the openings only, so they need about
-    // a third of a stop more than the open hillside — as a photographer would.
-    const inside = insideAt(progress)
-    const targetExposure = (1 + inside * .38) * exposure
-    gl.toneMappingExposure = MathUtils.lerp(gl.toneMappingExposure, targetExposure, 1 - Math.exp(-step * 1.8))
+    gl.toneMappingExposure = MathUtils.lerp(gl.toneMappingExposure, exposureAt(progress, exposure, interiorExposure), 1 - Math.exp(-step * 1.8))
   })
 
   return null
