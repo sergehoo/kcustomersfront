@@ -57,7 +57,7 @@ function recipes(maps: DetailMaps, mobile: boolean): [RegExp, VariationOptions][
   return [
     // Off-white render on every volume, as on the reference villas. Dirt is kept
     // very faint: on white it reads as neglect, not realism.
-    [/^(Material\.001|KAYDAN_RENDER_WHITE)$/, { scale: 2.6, albedo: .045, roughness: .1, streaks: .07, grime: .12, dirt: '#6d6458', hueDrift: .012 }],
+    [/^(Material\.001|KAYDAN_RENDER_WHITE)$/, { scale: 2.6, albedo: .06, roughness: .1, streaks: .08, grime: .13, dirt: '#6d6458', hueDrift: .014 }],
     [/^KAYDAN_PLASTER_IVORY$/, { scale: 2.6, albedo: .045, roughness: .1, streaks: .06, grime: .12, dirt: '#6d6458', hueDrift: .012 }],
     [/^KAYDAN_UPPER_PLASTER$|^material$/, { scale: 3.4, albedo: .05, roughness: .1, grime: .14, dirt: '#5b5246' }],
     // Honed limestone cladding in large panels (tower, cheeks, retaining walls),
@@ -104,6 +104,7 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
   const gltf = useGLTF(villaModel(mobile), true, true)
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene])
   const water = useRef<WaterUniforms | null>(null)
+  const screen = useRef<MeshStandardMaterial | null>(null)
   const sheer = useRef<SheerUniforms | null>(null)
   const [plasterNormal, plasterRoughness, woodGrain] = useTexture([
     '/assets/materials/detail/plaster-normal.webp',
@@ -253,7 +254,9 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
           material.roughness = .82
           // Ivory / off-white rather than clinical white: it is what lets the
           // render take the sun warmly and separates it from the white sky.
-          material.color.set(name === 'KAYDAN_PLASTER_IVORY' ? '#f1ebe0' : '#eee7db')
+          // A touch under the first pass: the last few percent of albedo are
+          // what tipped a sunlit wall from bright into blank.
+          material.color.set(name === 'KAYDAN_PLASTER_IVORY' ? '#f1ebe0' : '#e4ddd0')
           // The GLB's render texture is a mid grey (sRGB 141 on average): it
           // dragged every "white" wall down to concrete. Grain comes from the
           // relief map and the variation shader instead.
@@ -298,7 +301,7 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
         }
         if (name === 'KAYDAN_RENDER_WHITE') {
           material.normalMap = detail(plasterNormal, .6)
-          material.normalScale = new Vector2(.4, .4)
+          material.normalScale = new Vector2(.62, .62)
           material.roughnessMap = detail(plasterRoughness, .6)
         }
         if (name === 'KAYDAN_DOOR_OAK') {
@@ -322,6 +325,14 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
           material.userData.kdEntryGlass = true
         }
         if (name === 'KAYDAN_LED') material.userData.kdLed = true
+        if (name === 'KAYDAN_TV_SCREEN') {
+          // The living-room television (blender/scripts/refine_media.py): on by
+          // day as by night — it is not a lamp, the ambience does not dim it.
+          material.userData.kdScreen = true
+          material.roughness = .1
+          material.envMapIntensity = .4
+          screen.current = material
+        }
         // The lawn strips were a flat green: borrow the hillside's photographic
         // grass at a finer scale and pull it towards a watered green.
         if (name === 'KAYDAN_LAWN') borrow(material, grassDonor, 9, '#3f5a26', .72)
@@ -402,7 +413,7 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
         }
         if (/Rock0/.test(name)) material.roughness = .82
         // Lenses and lamp shades: their strength follows day/night.
-        if (material.emissive && material.emissive.getHex() !== 0 && !material.userData.kdLed && !material.userData.kdEntryGlass) {
+        if (material.emissive && material.emissive.getHex() !== 0 && !material.userData.kdLed && !material.userData.kdEntryGlass && !material.userData.kdScreen) {
           material.userData.kdEmissive = material.emissiveIntensity
         }
         if (FOLIAGE.test(name)) {
@@ -502,6 +513,11 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
   useFrame((state, delta) => {
     if (water.current) water.current.kdWaterTime.value += Math.min(delta, .05)
     if (sheer.current) sheer.current.kdSheerTime.value = state.clock.elapsedTime
+    // A programme is never a still: the picture breathes a few percent.
+    if (screen.current) {
+      const t = state.clock.elapsedTime
+      screen.current.emissiveIntensity = (ambience.mode === 'night' ? .7 : .95) * (1 + .05 * Math.sin(t * 6.7) + .04 * Math.sin(t * 2.3 + 1.1) + .03 * Math.sin(t * 13.9))
+    }
     const z = state.camera.position.z
     hidden.upstairs.forEach((object) => { object.visible = z < 16.4 })
     hidden.hall.forEach((object) => { object.visible = z > 8.6 && z < 18.2 })

@@ -58,8 +58,10 @@ export const AMBIENCES: Record<AmbienceMode, Ambience> = {
     emissive: .45,
     decals: 0,
     pool: 0,
-    exposure: 1,
-    interiorExposure: 1.12,
+    // A touch under 1: the sunlit render kept its tone and the sky its blue.
+    // The rooms take it back (interiorExposure), so they read as before.
+    exposure: .96,
+    interiorExposure: 1.165,
     bloom: .32,
   },
   night: {

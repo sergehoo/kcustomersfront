@@ -1,0 +1,16 @@
+/* The visit's two switches — sound, day / night — side by side under the
+   header. The day / night pill keeps its own look (ambience-toggle.css) and
+   only gives up its fixed position to this row. */
+.experience-controls{position:fixed;top:96px;right:var(--kd-gutter);z-index:15;display:flex;align-items:stretch;gap:8px}
+.experience-controls .ambience-toggle{position:relative;top:auto;right:auto}
+.sound-toggle{display:inline-flex;align-items:center;gap:7px;padding:0 14px;border:1px solid var(--kd-hairline);border-radius:var(--kd-r-pill);background:var(--kd-glass);backdrop-filter:var(--kd-blur);box-shadow:var(--kd-shadow);color:var(--kd-cream-dim);cursor:pointer;font:500 12px var(--kd-body);transition:color .22s,border-color .22s}
+.sound-toggle:hover,.sound-toggle.is-on{color:var(--kd-cream)}
+.sound-toggle.is-on svg{color:var(--kd-orange)}
+.sound-toggle span{min-width:2.4em;text-align:left}
+@media(max-width:1000px){.experience-controls{top:82px;right:22px}}
+@media(max-width:620px){
+  .experience-controls{top:72px;right:16px;gap:6px}
+  .sound-toggle{padding:0 11px;font-size:11px}
+  .sound-toggle span{display:none}
+}
+@media(prefers-reduced-motion:reduce){.sound-toggle{transition:none}}

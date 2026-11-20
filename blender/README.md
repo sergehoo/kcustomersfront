@@ -111,6 +111,7 @@ blender -b blender/backup-avant-restructuration-2026-11-19/kaydan-villa-producti
   --python blender/scripts/furnish_interiors.py \
   --python blender/scripts/refine_details.py \
   --python blender/scripts/refine_textiles.py \
+  --python blender/scripts/refine_media.py \
   --python blender/scripts/camera_shots.py \
   --python blender/scripts/merge_furniture.py
 npm run optimize:production
@@ -137,6 +138,11 @@ and lined drapes in `KAYDAN_DRAPE_LINEN` (UV: arc length across, 0 → 1 up the
 panel, which weights the runtime sway) — and flattens the pool's water surface
 at 11 cm under the coping. `npm run optimize:production` leaves those two
 materials out of mesh simplification, which flattened the pleats.
+
+`refine_media.py` hangs the living room's television on the chimney breast,
+in place of the canvas: the sound design plays a news programme from that
+room, and a sound needs its source in the picture. The screen's image is drawn
+by the script (a generic studio, no channel's branding).
 
 `camera_shots.py` holds the visit's compositions: per room an overview and
 focus shots, each aimed at a `TARGET_*` anchor on real furniture, and the

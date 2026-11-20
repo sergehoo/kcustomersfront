@@ -1,7 +1,7 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { ArrowDown, ArrowUpRight, ChevronDown } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { NeutralToneMapping } from 'three'
 import { SiteHeader } from '../components/layout/SiteHeader'
@@ -14,6 +14,9 @@ import { AmbienceToggle } from './AmbienceToggle'
 import { TOUR_SCROLL_VH, TOUR_STOPS } from './tour'
 import { SHOT_CAPTIONS } from './captions'
 import { KaydanLogo } from '../components/brand/KaydanLogo'
+import { typeset, usePresence, useTitleFit } from './copy'
+import { useSound } from './audio/sound'
+import { SoundToggle } from './audio/SoundToggle'
 
 const StaticFallback = lazy(() => import('./StaticFallback'))
 
@@ -41,93 +44,107 @@ function isWebGLAvailable() {
   } catch { return false }
 }
 
+/** Exit of a text block, in ms: matches the fade in styles.css. */
+const COPY_EXIT = 380
+/** How long a text must have been wanted before it enters (see copy.ts). */
+const COPY_SETTLE = 140
+
+/** A custom property for the stagger of one element. */
+const delay = (seconds: number) => ({ '--kd-delay': `${seconds}s` }) as CSSProperties
+
 /**
- * Entirely scroll-driven: `enter` and `leave` are pure functions of progress, so
- * every frame is authoritative and nothing is left behind by a finished CSS
- * animation. The previous `animation: editorial-in … both` rule outranked these
- * inline styles in the cascade and pinned every title at opacity 1.
+ * Whether a room's copy is wanted at this point of the scroll: from just
+ * after the camera lands on the room's overview until it is on its way out.
+ * Scroll decides that and nothing else — the motion itself is timed (copy.ts).
  */
-function sectionVisibility(progress: number, section: ExperienceSection, index: number) {
-  const nextProgress = EXPERIENCE_SECTIONS[index + 1]?.progress ?? 1
-  const span = Math.max(.001, nextProgress - section.progress)
-  const local = clamp01((progress - section.progress) / span)
-  const enter = clamp01(local / .1)
-  const leave = clamp01((1 - local) / .18)
-  // The hero owns the very first screen: it fades as the camera leaves the
+function copyWanted(progress: number, section: ExperienceSection, index: number) {
+  // The hero owns the very first screen: it leaves as the camera leaves the
   // hero shot, before the façade shot of the same room.
-  const visible = index === 0 ? clamp01(1 - (progress - HERO_HOLD_END) / .012) : Math.min(enter, leave)
-  return { enter: index === 0 ? 1 : enter, visible }
+  if (index === 0) return progress <= HERO_HOLD_END + .004
+  const nextProgress = EXPERIENCE_SECTIONS[index + 1]?.progress ?? 1
+  const local = (progress - section.progress) / Math.max(.001, nextProgress - section.progress)
+  return local >= .02 && local <= .86
 }
 
-function ExperienceCopy({ progress, section, index, moveTo }: {
+function ExperienceCopy({ progress, section, index, moveTo, ready, onBegin }: {
   progress: number
   section: ExperienceSection
   index: number
   moveTo: (id: ExperienceSectionId) => void
+  ready: boolean
+  /** The visitor starts the visit: the moment the sound may come in. */
+  onBegin: () => void
 }) {
-  const { enter, visible } = sectionVisibility(progress, section, index)
-  const lines = section.title.split('\n')
+  const stage = usePresence(ready && copyWanted(progress, section, index) ? section.id : null, COPY_EXIT, COPY_SETTLE)
+  const title = useRef<HTMLHeadingElement>(null)
+  useTitleFit(title, stage.key)
+  const shown = EXPERIENCE_SECTIONS.find((item) => item.id === stage.key)
+  if (!shown) return null
   // The hero's call to action starts the visit — it used to open /rendez-vous
   // while reading "Commencer la visite". Its href stays a real deep link for
   // middle-click and no-JS; a plain click moves the camera instead.
-  const startsVisit = index === 0
+  const startsVisit = shown.number === 1
   const nextRoom = EXPERIENCE_SECTIONS[1].id
+  const focusable = stage.shown ? 0 : -1
   return <section
-    className={`experience-copy ${index === 0 ? 'experience-copy--hero' : ''}`}
+    className={`experience-copy${startsVisit ? ' experience-copy--hero' : ''}${stage.shown ? ' is-shown' : ''}`}
     aria-live="polite"
-    style={{ opacity: visible, transform: `translateY(${(1 - visible) * 14}px)`, pointerEvents: visible > .5 ? 'auto' : 'none' }}
   >
-    <p className="eyebrow" style={{ opacity: clamp01((enter - .1) / .5) }}>{section.eyebrow}</p>
-    <h1>
-      {lines.map((line, lineIndex) => {
-        // Per-line mask reveal: the type itself is never blurred, so an active title is pixel-sharp.
-        const lineEnter = clamp01((enter - lineIndex * .16) / (1 - lineIndex * .16))
-        return <span className="copy-line" key={line}>
-          <i style={{ transform: `translateY(${(1 - lineEnter) * 135}%)` }}>{line}</i>
+    <p className="eyebrow copy-fade" style={delay(.02)}>{shown.eyebrow}</p>
+    <h1 ref={title}>
+      {shown.title.split('\n').map((line, lineIndex) => (
+        // Per-line mask reveal: the type itself is never blurred or faded, so
+        // an active title is pixel-sharp. Each word is its own box: a line may
+        // wrap between words on a narrow screen, never inside one.
+        <span className="copy-line" key={line} style={{ '--kd-line': lineIndex } as CSSProperties}>
+          <i>{line.split(' ').map((word, wordIndex) => <span key={wordIndex}>{wordIndex > 0 && ' '}<span className="copy-word">{word}</span></span>)}</i>
         </span>
-      })}
+      ))}
     </h1>
-    {section.subtitle && <p className="copy-subtitle" style={{ opacity: clamp01((enter - .22) / .5) }}>{section.subtitle}</p>}
-    <p className="copy-body" style={{ opacity: clamp01((enter - .3) / .6) }}>{section.description}</p>
-    {(section.action || section.secondary) && <div className="copy-actions" style={{ opacity: clamp01((enter - .42) / .5) }}>
-      {section.action && <ActionLink
-        action={section.action}
+    {shown.subtitle && <p className="copy-subtitle copy-fade" style={delay(.36)}>{typeset(shown.subtitle)}</p>}
+    <p className="copy-body copy-fade" style={delay(shown.subtitle ? .46 : .4)}>{typeset(shown.description)}</p>
+    {(shown.action || shown.secondary) && <div className="copy-actions copy-fade" style={delay(shown.subtitle ? .58 : .52)}>
+      {shown.action && <ActionLink
+        action={shown.action}
         className="primary-link"
-        tabIndex={visible > .5 ? 0 : -1}
-        onClick={startsVisit ? (event) => { event.preventDefault(); moveTo(nextRoom) } : undefined}
+        tabIndex={focusable}
+        onClick={startsVisit ? (event) => { event.preventDefault(); onBegin(); moveTo(nextRoom) } : undefined}
       >
-        {section.action.label}{startsVisit ? <ArrowDown size={17} /> : <ArrowUpRight size={17} />}
+        {shown.action.label}{startsVisit ? <ArrowDown size={17} /> : <ArrowUpRight size={17} />}
       </ActionLink>}
-      {section.secondary && <ActionLink action={section.secondary} className="ghost-link" tabIndex={visible > .5 ? 0 : -1}>
-        {section.secondary.label}<ArrowUpRight size={16} />
+      {shown.secondary && <ActionLink action={shown.secondary} className="ghost-link" tabIndex={focusable}>
+        {shown.secondary.label}<ArrowUpRight size={16} />
       </ActionLink>}
     </div>}
   </section>
 }
 
 /**
- * A line on some focus shots, held with the shot: it reveals as the camera
- * settles and is gone before it moves on, so it never travels over a room.
+ * A line on some focus shots, held with the shot: it comes in once the camera
+ * has settled and is gone before it moves on, so it never travels over a room.
  */
 function ShotCaption({ progress }: { progress: number }) {
   const stop = TOUR_STOPS.find((item) => item.shot && progress >= item.arrive && progress <= item.leave && SHOT_CAPTIONS[`${item.room}/${item.shot}`])
-  if (!stop) return null
-  const caption = SHOT_CAPTIONS[`${stop.room}/${stop.shot}`]
-  const local = (progress - stop.arrive) / Math.max(1e-6, stop.leave - stop.arrive)
-  const reveal = clamp01(local / .22) * clamp01((1 - local) / .18)
-  return <aside className="shot-caption" aria-live="polite" style={{ opacity: reveal }}>
-    <span className="shot-caption-rule" style={{ transform: `scaleX(${reveal})` }} aria-hidden="true" />
-    {caption.eyebrow && <p className="shot-caption-eyebrow">{caption.eyebrow}</p>}
-    {caption.text && <p className="shot-caption-text"><span style={{ clipPath: `inset(0 ${(1 - reveal) * 100}% 0 0)` }}>{caption.text}</span></p>}
-    {caption.steps && <ol className="shot-caption-steps">{caption.steps.map((step, index) => <li key={step} style={{ opacity: clamp01(reveal * 1.6 - index * .18) }}>{step}</li>)}</ol>}
+  const local = stop ? (progress - stop.arrive) / Math.max(1e-6, stop.leave - stop.arrive) : 0
+  const stage = usePresence(stop && local >= .1 && local <= .86 ? `${stop.room}/${stop.shot}` : null, COPY_EXIT, COPY_SETTLE)
+  const caption = stage.key ? SHOT_CAPTIONS[stage.key] : null
+  if (!caption) return null
+  return <aside className={`shot-caption${stage.shown ? ' is-shown' : ''}`} aria-live="polite">
+    <span className="shot-caption-rule" aria-hidden="true" />
+    {caption.eyebrow && <p className="shot-caption-eyebrow copy-fade" style={delay(.1)}>{caption.eyebrow}</p>}
+    {caption.text && <p className="shot-caption-text copy-fade" style={delay(.18)}>{typeset(caption.text)}</p>}
+    {caption.steps && <ol className="shot-caption-steps">{caption.steps.map((step, index) => <li key={step} className="copy-fade" style={delay(.18 + index * .1)}>{step}</li>)}</ol>}
   </aside>
 }
 
-function ExperienceOverlay({ progress, section, moveTo, moveToProgress }: {
+function ExperienceOverlay({ progress, section, moveTo, moveToProgress, ready, onBegin }: {
   progress: number
   section: ExperienceSection
   moveTo: (id: ExperienceSectionId) => void
   moveToProgress: (value: number) => void
+  onBegin: () => void
+  /** The loader has lifted: the hero's text enters with the first frame, not behind the curtain. */
+  ready: boolean
 }) {
   const index = EXPERIENCE_SECTIONS.findIndex((item) => item.id === section.id)
   const outroReveal = clamp01((progress - OUTRO_PROGRESS) / (1 - OUTRO_PROGRESS - .015))
@@ -148,7 +165,7 @@ function ExperienceOverlay({ progress, section, moveTo, moveToProgress }: {
         <small>{section.label}</small>
       </aside>
 
-      <ExperienceCopy progress={progress} section={section} index={index} moveTo={moveTo} />
+      <ExperienceCopy progress={progress} section={section} index={index} moveTo={moveTo} ready={ready} onBegin={onBegin} />
       <ShotCaption progress={progress} />
 
       <aside className="experience-spec" aria-label="Espace actuel">
@@ -158,7 +175,12 @@ function ExperienceOverlay({ progress, section, moveTo, moveToProgress }: {
 
       <button
         className="scroll-cue"
-        onClick={() => (index === SECTION_COUNT - 1 ? moveToProgress(1) : moveTo(nextSection.id))}
+        onClick={() => {
+          // « Découvrir » under the hero starts the visit as the call to action does.
+          if (index === 0) onBegin()
+          if (index === SECTION_COUNT - 1) moveToProgress(1)
+          else moveTo(nextSection.id)
+        }}
         aria-label={index === SECTION_COUNT - 1 ? 'Aller à la fin de la visite' : `Aller à ${nextSection.label}`}
       >
         <ChevronDown size={20} /><span>{index === 0 ? 'Découvrir' : 'Continuer'}</span>
@@ -194,6 +216,7 @@ export function CustomerCareExperience() {
   const { active: assetsLoading, progress: assetsProgress, loaded, total } = useProgress()
   const [dismissed, setDismissed] = useState(false)
   const { ambience, mode: ambienceMode, automatic: ambienceAutomatic, toggle: toggleAmbience } = useAmbienceControl()
+  const sound = useSound()
   // Set once every shader is compiled (Scene → Warmup), so the curtain never
   // lifts on a frame that is still building its programs.
   const [sceneReady, setSceneReady] = useState(false)
@@ -242,8 +265,11 @@ export function CustomerCareExperience() {
       </Canvas> : webgl === false ? <Suspense fallback={null}><StaticFallback /></Suspense> : null}
     </div>
 
-    <ExperienceOverlay progress={progress} section={section} moveTo={moveTo} moveToProgress={moveToProgress} />
-    {webgl === true && <AmbienceToggle mode={ambienceMode} automatic={ambienceAutomatic} onToggle={toggleAmbience} />}
+    <ExperienceOverlay progress={progress} section={section} moveTo={moveTo} moveToProgress={moveToProgress} ready={dismissed} onBegin={sound.begin} />
+    {webgl === true && <div className="experience-controls">
+      <SoundToggle on={sound.on} onToggle={sound.toggle} />
+      <AmbienceToggle mode={ambienceMode} automatic={ambienceAutomatic} onToggle={toggleAmbience} />
+    </div>}
     <div ref={ref} className="experience-scroll" aria-hidden="true"><div /></div>
   </div>
 }

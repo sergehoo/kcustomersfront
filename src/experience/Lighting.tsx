@@ -15,11 +15,22 @@ import { TOUR_MARKS } from './tour'
  * sun and sky now comes from the scene, and ambient occlusion (PostEffects)
  * grounds what the sun does not reach.
  */
+/**
+ * Outside, the sun is held a fifth lower than it was. At 5.2 every sunlit
+ * face of the off-white render landed at 240–247 out of 255 — a seventh of
+ * the hero frame with no tone left in it, the plaster's grain and the panel
+ * joints gone. At 3.9, with the day's exposure and the render's albedo each
+ * eased a few percent, a lit wall sits around 220: still plainly the
+ * brightest thing after the clouds, but with a surface. Indoors it keeps its strength:
+ * there the sun only reaches the floors as patches.
+ */
 const SUN_STOPS: { at: number; color: string; intensity: number }[] = [
-  { at: 0, color: '#ffeed6', intensity: 5.2 },
+  { at: 0, color: '#ffecd2', intensity: 3.9 },
+  { at: TOUR_MARKS.enter[0], color: '#ffecd2', intensity: 3.9 },
   { at: TOUR_MARKS.enter[1], color: '#ffe6c6', intensity: 4.8 },
   { at: TOUR_MARKS.exit[0], color: '#ffe6c6', intensity: 4.8 },
-  { at: 1, color: '#ffdfb8', intensity: 5.0 },
+  { at: TOUR_MARKS.exit[1], color: '#ffe4c2', intensity: 3.9 },
+  { at: 1, color: '#ffdfb8', intensity: 3.9 },
 ]
 
 function sunLook(progress: number) {

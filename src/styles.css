@@ -109,25 +109,43 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .experience-grid{display:none}
 
 /* ── Editorial copy ────────────────────────────────────────────────────────── */
-.experience-copy{position:absolute;top:27%;left:calc(var(--kd-gutter) + 8px);width:min(880px,70vw);transition:opacity .09s linear}
+/* Shown and hidden as a whole, on a clock (copy.ts): the block fades, and
+   inside it each piece comes in on its own delay. Hidden pieces snap back to
+   their start only once the block has faded, so nothing moves on the way out. */
+.experience-copy{position:absolute;top:27%;left:calc(var(--kd-gutter) + 8px);width:min(880px,70vw);opacity:0;pointer-events:none;transition:opacity .36s ease;isolation:isolate}
+/* A soft shade behind the text, part of the block so it comes and goes with
+   it: cream type on a sunlit wall or a white marble room had nothing to read
+   against. No edge, no panel — the scene just settles where the words are. */
+.experience-copy::before{content:"";position:absolute;z-index:-1;inset:-22% -18% -30% -60%;background:radial-gradient(ellipse 64% 60% at 40% 46%,rgba(9,9,7,.5),rgba(9,9,7,.24) 50%,transparent 74%);pointer-events:none}
+.experience-copy.is-shown{opacity:1;pointer-events:auto;transition:opacity .45s ease}
+.copy-fade{opacity:0;transform:translateY(10px);transition:opacity 0s linear .38s,transform 0s linear .38s}
+.is-shown .copy-fade{opacity:1;transform:none;transition:opacity .7s ease var(--kd-delay,0s),transform .95s cubic-bezier(.16,.84,.3,1) var(--kd-delay,0s)}
 .experience-copy .eyebrow{margin-bottom:18px;display:inline-flex;align-items:center;gap:12px;color:var(--kd-gold-bright);font-size:9px;text-shadow:0 2px 14px rgba(0,0,0,.6)}
 .experience-copy .eyebrow::before{content:"";display:block;width:28px;height:1.5px;background:var(--kd-orange)}
-.experience-copy h1{margin:0;font:600 clamp(56px,7vw,108px)/.84 var(--kd-display);letter-spacing:-.035em;text-transform:uppercase;color:var(--kd-cream);text-shadow:0 4px 30px rgba(0,0,0,.45)}
+/* `--kd-fit` (copy.ts) scales the title down just enough for its longest line
+   — or, where lines wrap, its longest word — to fit the column: never clipped. */
+.experience-copy h1{--kd-title-size:clamp(56px,7vw,108px);margin:0;font:600 calc(var(--kd-title-size) * var(--kd-fit,1))/.84 var(--kd-display);letter-spacing:-.035em;text-transform:uppercase;color:var(--kd-cream);text-shadow:0 4px 30px rgba(0,0,0,.45)}
 .experience-copy h1 .copy-line{display:block;overflow:hidden;white-space:nowrap;padding:.22em 0 .08em;margin:-.22em 0 -.08em}
-.experience-copy h1 .copy-line i{display:block;font-style:normal;will-change:transform}
-.experience-copy .copy-body{max-width:440px;margin:20px 0 24px;color:var(--kd-cream-dim);font-size:13.5px;line-height:1.65;text-shadow:0 2px 18px rgba(0,0,0,.6)}
-.experience-copy .copy-subtitle{max-width:520px;margin:22px 0 0;color:var(--kd-cream);font:500 clamp(17px,1.5vw,22px)/1.35 var(--kd-body);letter-spacing:-.005em;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+/* `text-wrap-style`, not the `text-wrap` shorthand: the shorthand also turns
+   wrapping back on and would undo `white-space:nowrap` on wide screens. */
+.experience-copy h1 .copy-line i{display:block;font-style:normal;text-wrap-style:balance;transform:translateY(112%);transition:transform 0s linear .38s}
+.experience-copy.is-shown h1 .copy-line i{transform:none;transition:transform 1s cubic-bezier(.16,.84,.3,1) calc(.08s + var(--kd-line,0) * .12s)}
+.experience-copy h1 .copy-word{display:inline-block;white-space:nowrap}
+.experience-copy .copy-body{max-width:440px;margin:20px 0 24px;color:var(--kd-cream-dim);font-size:13.5px;line-height:1.65;text-shadow:0 2px 18px rgba(0,0,0,.6);text-wrap:pretty;hyphens:manual}
+.experience-copy .copy-subtitle{max-width:520px;margin:22px 0 0;color:var(--kd-cream);font:500 clamp(17px,1.5vw,22px)/1.35 var(--kd-body);letter-spacing:-.005em;text-shadow:0 2px 18px rgba(0,0,0,.6);text-wrap:balance;hyphens:manual}
 .experience-copy .copy-subtitle + .copy-body{margin-top:12px}
 .copy-actions{display:flex;flex-wrap:wrap;gap:11px}
 .experience-copy--hero{width:min(920px,74vw)}
-.experience-copy--hero h1{font-size:clamp(64px,7.6vw,118px);line-height:.8}
+.experience-copy--hero h1{--kd-title-size:clamp(64px,7.6vw,118px);line-height:.8}
 
 /* ── Shot captions ─────────────────────────────────────────────────────────── */
-.shot-caption{position:absolute;left:50%;bottom:118px;width:min(560px,calc(100vw - 2 * var(--kd-gutter)));transform:translateX(-50%);display:grid;justify-items:center;gap:9px;text-align:center;pointer-events:none}
-.shot-caption-rule{display:block;width:44px;height:1.5px;background:var(--kd-orange);transform-origin:center}
+.shot-caption{position:absolute;left:50%;bottom:118px;width:min(560px,calc(100vw - 2 * var(--kd-gutter)));transform:translateX(-50%);display:grid;justify-items:center;gap:9px;text-align:center;pointer-events:none;opacity:0;transition:opacity .36s ease}
+.shot-caption.is-shown{opacity:1;transition:opacity .45s ease}
+.shot-caption::before{content:"";position:absolute;z-index:-1;inset:-46px -90px -40px;background:radial-gradient(ellipse 58% 62% at 50% 52%,rgba(9,9,7,.44),rgba(9,9,7,.18) 54%,transparent 76%);pointer-events:none}
+.shot-caption-rule{display:block;width:44px;height:1.5px;background:var(--kd-orange);transform-origin:center;transform:scaleX(0);transition:transform 0s linear .38s}
+.is-shown .shot-caption-rule{transform:scaleX(1);transition:transform .9s cubic-bezier(.16,.84,.3,1) .04s}
 .shot-caption-eyebrow{margin:0;color:var(--kd-gold-bright);font:500 8.5px var(--kd-mono);letter-spacing:.22em;text-shadow:0 2px 12px rgba(0,0,0,.7)}
-.shot-caption-text{margin:0;color:var(--kd-cream);font:500 clamp(15px,1.25vw,18px)/1.45 var(--kd-body);text-shadow:0 2px 18px rgba(0,0,0,.75)}
-.shot-caption-text span{display:inline-block}
+.shot-caption-text{margin:0;color:var(--kd-cream);font:500 clamp(15px,1.25vw,18px)/1.45 var(--kd-body);text-shadow:0 2px 18px rgba(0,0,0,.75);text-wrap:balance;hyphens:manual}
 .shot-caption-steps{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:6px 0;margin:0;padding:0;color:var(--kd-cream);font:500 13px var(--kd-body);text-shadow:0 2px 14px rgba(0,0,0,.75)}
 .shot-caption-steps li{display:inline-flex;align-items:center}
 .shot-caption-steps li + li::before{content:"";display:inline-block;width:22px;height:1px;margin:0 12px;background:var(--kd-orange)}
@@ -252,8 +270,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media(max-width:1120px){
   .experience-copy{width:82vw}
-  .experience-copy h1{font-size:clamp(60px,8.8vw,100px)}
-  .experience-copy--hero h1{font-size:clamp(74px,10.4vw,116px)}
+  .experience-copy h1{--kd-title-size:clamp(60px,8.8vw,100px)}
+  .experience-copy--hero h1{--kd-title-size:clamp(74px,10.4vw,116px)}
   .experience-spec{width:250px}
 }
 @media(max-width:1000px){
@@ -282,7 +300,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   .mobile-nav{top:54px;width:calc(100vw - 32px)}
   .experience-page,.experience-scroll{min-height:var(--kd-visit-length,700vh);height:var(--kd-visit-length,700vh)}
   .experience-copy,.experience-copy--hero{top:26%;left:18px;width:calc(100vw - 36px)}
-  .experience-copy h1,.experience-copy--hero h1{font-size:clamp(52px,14.5vw,66px);line-height:.83;letter-spacing:-.03em}
+  .experience-copy h1,.experience-copy--hero h1{--kd-title-size:clamp(52px,14.5vw,66px);line-height:.83;letter-spacing:-.03em}
   .experience-copy h1 .copy-line{white-space:normal}
   .experience-copy--hero h1 .copy-line:first-child{white-space:nowrap}
   .experience-copy .copy-body{max-width:330px;margin:16px 0 18px;font-size:12.5px}
@@ -320,7 +338,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 }
 @media(max-height:520px) and (orientation:landscape){
   .experience-copy,.experience-copy--hero{top:19%;left:clamp(18px,4vw,50px);width:min(560px,62vw)}
-  .experience-copy h1,.experience-copy--hero h1{font-size:clamp(30px,5.4vw,44px);line-height:.88}
+  .experience-copy h1,.experience-copy--hero h1{--kd-title-size:clamp(30px,5.4vw,44px);line-height:.88}
   .experience-copy h1 .copy-line{white-space:normal}
   .experience-copy .eyebrow{margin-bottom:8px;font-size:8px}
   .experience-copy .copy-body{max-width:340px;margin:11px 0 13px;font-size:11.5px;line-height:1.5}
@@ -342,7 +360,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   .experience-frame{inset:8px}
 }
 @media(prefers-reduced-motion:reduce){
-  .experience-copy h1 .copy-line i{transform:none!important}
+  /* No travel: every text simply fades in and out. */
+  .experience-copy h1 .copy-line i,.copy-fade,.shot-caption-rule{transform:none!important;transition:none!important}
   .scroll-cue svg,.experience-loader i{animation:none}
   .mobile-nav{transition:none}
   .header-cta:hover,.primary-link:hover{transform:none}

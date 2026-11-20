@@ -1,4 +1,4 @@
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useLayoutEffect, useMemo, useState } from 'react'
 import {
   BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, IcosahedronGeometry, InstancedMesh,
@@ -6,15 +6,17 @@ import {
 } from 'three'
 import type { Ambience } from './ambience'
 import { applyVariation } from './realism/materialVariation'
+import { applyWind, WIND_TIME } from './realism/wind'
 
 /**
  * A structured, mineral-and-architectural garden in the spirit of modern
  * Mediterranean villas: drifts of ornamental grasses, agave rosettes,
  * clipped boxwood spheres and a few palms framing the entrance.
  *
- * Everything is procedural (no extra download) and instanced — four draw
+ * Everything is procedural (no extra download) and instanced — five draw
  * calls for the whole planting — and set by ray-casting onto the villa's own
- * planting surfaces, so nothing ever floats or sinks into paving.
+ * planting surfaces, so nothing ever floats or sinks into paving. Grasses,
+ * fronds and agaves move in a light breeze (realism/wind.ts).
  */
 
 // ── deterministic random ─────────────────────────────────────────────────────
@@ -60,21 +62,33 @@ function finish(b: Builder) {
   geometry.setAttribute('color', new BufferAttribute(new Float32Array(b.colors), 3))
   geometry.setIndex(b.indices)
   geometry.computeVertexNormals()
+  // A vertex that only belongs to zero-area faces comes out with a null
+  // normal, which the fragment shader normalises into NaN: point it up instead.
+  const normal = geometry.getAttribute('normal')
+  for (let i = 0; i < normal.count; i += 1) {
+    if (Math.hypot(normal.getX(i), normal.getY(i), normal.getZ(i)) < .5) normal.setXYZ(i, 0, 1, 0)
+  }
   return geometry
 }
 
-/** Fountain grass clump: ~70 arching blades, darker at the crown, straw tips. */
+/**
+ * Fountain grass clump: ~90 fine blades of uneven length that arch outwards
+ * and hang at the tip, darker at the crown, a few of them dried to straw.
+ */
 function grassClump() {
   const random = rng(7)
   const b: Builder = { positions: [], colors: [], indices: [] }
-  const root = new Color('#55603a'), tip = new Color('#c9c08f')
-  for (let i = 0; i < 70; i += 1) {
+  const root = new Color('#4f5c37'), tip = new Color('#bdb886'), straw = new Color('#cdbd8a')
+  for (let i = 0; i < 92; i += 1) {
     const angle = random() * Math.PI * 2
-    const lean = .25 + random() * .75
-    const direction = new Vector3(Math.cos(angle) * lean, 1, Math.sin(angle) * lean).normalize()
-    const base = new Vector3(Math.cos(angle) * random() * .12, 0, Math.sin(angle) * random() * .12)
-    blade(b, base, new Vector3(direction.x, 0, direction.z).normalize().multiplyScalar(lean), .7 + random() * .45, .022, .35 + random() * .5,
-      root.clone().multiplyScalar(.85 + random() * .3), tip.clone().multiplyScalar(.85 + random() * .25), 5)
+    // Upright in the heart of the clump, splayed and longer at its skirt.
+    const ring = Math.pow(random(), .8)
+    const lean = .18 + ring * .8
+    const length = (.55 + random() * .5) * (.8 + ring * .35)
+    const base = new Vector3(Math.cos(angle) * ring * .11, 0, Math.sin(angle) * ring * .11)
+    const dry = random() < .16
+    blade(b, base, new Vector3(Math.cos(angle), 0, Math.sin(angle)).multiplyScalar(lean), length, .011 + random() * .011, .32 + ring * .45 + random() * .25,
+      root.clone().multiplyScalar(.82 + random() * .32), (dry ? straw : tip).clone().multiplyScalar(.84 + random() * .28), 6)
   }
   return finish(b)
 }
@@ -115,28 +129,92 @@ function palmTrunk() {
   return geometry
 }
 
+/** A ribbon along a polyline: `across` is the direction of its width. */
+function strip(b: Builder, points: Vector3[], across: Vector3, width: (t: number) => number, root: Color, tip: Color) {
+  const start = b.positions.length / 3
+  points.forEach((point, index) => {
+    const t = index / (points.length - 1)
+    const color = root.clone().lerp(tip, t)
+    for (const s of [-1, 1]) {
+      const q = point.clone().addScaledVector(across, s * width(t) * .5)
+      b.positions.push(q.x, q.y, q.z)
+      b.colors.push(color.r, color.g, color.b)
+    }
+  })
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = start + i * 2
+    b.indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
+}
+
+/**
+ * A feather-palm crown. The first one was fourteen straight combs: every
+ * frond the same arc, every leaflet the same rising V. A real crown is a
+ * spiral of ages — young fronds stand up at its heart, mature ones arch out,
+ * old ones hang — and along each frond the leaflets start short, lengthen,
+ * taper off, and droop under their own weight from a rib that also curls.
+ */
 function palmCrown() {
   const random = rng(23)
   const b: Builder = { positions: [], colors: [], indices: [] }
-  const rib = new Color('#5e7232'), leaf = new Color('#7f9a40')
-  for (let f = 0; f < 14; f += 1) {
-    const angle = (f / 14) * Math.PI * 2 + random() * .2
-    const rise = .2 + random() * .55
-    const length = 1.7 + random() * .6
+  const up = new Vector3(0, 1, 0)
+  const young = new Color('#5b7a30'), mature = new Color('#4c692c'), old = new Color('#7d8045')
+  const fronds = 22
+  for (let f = 0; f < fronds; f += 1) {
+    const age = f / (fronds - 1)
+    // Golden angle: no two fronds ever stack.
+    const angle = f * 2.39996 + (random() - .5) * .35
+    const length = 2.0 + random() * .65 - Math.abs(age - .45) * .5
+    const lift = 1.25 - age * 1.2 + (random() - .5) * .18
+    const droop = .68 + age * .34 + random() * .2
+    const curl = (random() - .5) * .55
     const direction = new Vector3(Math.cos(angle), 0, Math.sin(angle))
     const side = new Vector3(-direction.z, 0, direction.x)
-    // Leaflets along an arching rachis.
-    for (let i = 2; i < 22; i += 1) {
-      const t = i / 22
-      const point = direction.clone().multiplyScalar(length * t).add(new Vector3(0, rise * t * 2 - t * t * 1.6, 0))
+    const rib = (t: number) => direction.clone().multiplyScalar(length * t * (1 - .1 * t))
+      .addScaledVector(side, curl * t * t * .45)
+      .addScaledVector(up, length * (lift * .5 * t - droop * .6 * t * t))
+    const green = (age < .5 ? young.clone().lerp(mature, age * 2) : mature.clone().lerp(old, (age - .5) * 1.5)).multiplyScalar(.9 + random() * .22)
+    const pale = green.clone().lerp(new Color('#a5b25c'), .45)
+
+    strip(b, Array.from({ length: 11 }, (_, i) => rib(i / 10)), side, (t) => .05 - t * .038, pale.clone().multiplyScalar(.9), pale)
+
+    const pairs = 30
+    for (let i = 0; i < pairs; i += 1) {
+      const t = .1 + (i / (pairs - 1)) * .88
+      const origin = rib(t)
+      const tangent = rib(Math.min(1, t + .02)).sub(origin).normalize()
+      // Short at the base, longest a third of the way out, fine at the tip.
+      // (Never down to nothing: a leaflet of no length has no normal, and one
+      // pixel lit by an undefined normal is spread across the frame by bloom.)
+      const reach = .56 * Math.pow(Math.sin(Math.PI * Math.min(.94, .1 + t * .92)), .55) * (1 - t * .3) * (.9 + random() * .2)
       for (const s of [-1, 1]) {
-        const leafDirection = direction.clone().multiplyScalar(.55).addScaledVector(side, s).normalize()
-        // Bend > 1: each leaflet rises, then droops like a real pinna.
-        blade(b, point, leafDirection, .42 * (1 - t * .55), .05, 1.35, rib, leaf.clone().multiplyScalar(.85 + random() * .3), 2)
+        const out = side.clone().multiplyScalar(s).addScaledVector(tangent, .5 + random() * .15).normalize()
+        const hang = .55 + age * .35 + random() * .2
+        // Rises a little out of the rib, then hangs.
+        const points = Array.from({ length: 4 }, (_, k) => {
+          const u = k / 3
+          return origin.clone().addScaledVector(out, reach * u * (1 - .12 * u)).addScaledVector(up, reach * (.3 * u - hang * u * u))
+        })
+        const across = new Vector3().crossVectors(out, up).normalize()
+        strip(b, points, across, (u) => .046 * (1 - u * .82), green, pale.clone().multiplyScalar(.92 + random() * .16))
       }
     }
   }
   return finish(b)
+}
+
+/** A clipped boxwood sphere, with the slight unevenness of a living one. */
+function topiary() {
+  const geometry = new IcosahedronGeometry(.5, 3)
+  const position = geometry.getAttribute('position')
+  const vertex = new Vector3()
+  for (let i = 0; i < position.count; i += 1) {
+    vertex.fromBufferAttribute(position, i)
+    const lump = 1 + Math.sin(vertex.x * 9.1 + 1.3) * Math.sin(vertex.y * 8.3 + .4) * Math.sin(vertex.z * 9.7 - .8) * .035
+    position.setXYZ(i, vertex.x * lump, vertex.y * lump, vertex.z * lump)
+  }
+  geometry.computeVertexNormals()
+  return geometry
 }
 
 // ── placement ────────────────────────────────────────────────────────────────
@@ -182,18 +260,24 @@ export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambien
   const geometries = useMemo(() => ({
     grass: grassClump(),
     agave: agave(),
-    topiary: new IcosahedronGeometry(.5, 3),
+    topiary: topiary(),
     trunk: palmTrunk(),
     crown: palmCrown(),
   }), [])
 
   const materials = useMemo(() => {
-    const foliage = new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, roughness: .78, metalness: 0, envMapIntensity: .7 })
-    const succulent = new MeshStandardMaterial({ vertexColors: true, side: DoubleSide, roughness: .55, metalness: 0, envMapIntensity: .9 })
+    // Grasses and fronds share a look but not a way of moving: a blade bends
+    // from its foot, a frond from the crown outwards.
+    const foliage = new MeshStandardMaterial({ name: 'KD_GRASS', vertexColors: true, side: DoubleSide, roughness: .78, metalness: 0, envMapIntensity: .7 })
+    const fronds = new MeshStandardMaterial({ name: 'KD_FRONDS', vertexColors: true, side: DoubleSide, roughness: .7, metalness: 0, envMapIntensity: .7 })
+    const succulent = new MeshStandardMaterial({ name: 'KD_AGAVE', vertexColors: true, side: DoubleSide, roughness: .55, metalness: 0, envMapIntensity: .9 })
+    applyWind(foliage, { height: .95, strength: .075, flutter: .1 })
+    applyWind(fronds, { reach: .42, height: .1, strength: .14, flutter: .16 })
+    applyWind(succulent, { height: 1.3, strength: .007, flutter: 0 })
     const boxwood = new MeshStandardMaterial({ color: '#41592c', roughness: .92, metalness: 0, envMapIntensity: .6 })
     applyVariation(boxwood, { scale: .12, albedo: .35, roughness: .05, hueDrift: .1 })
     const trunk = new MeshStandardMaterial({ vertexColors: true, roughness: .9, metalness: 0 })
-    return { foliage, succulent, boxwood, trunk }
+    return { foliage, fronds, succulent, boxwood, trunk }
   }, [])
 
   useLayoutEffect(() => {
@@ -279,14 +363,17 @@ export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambien
       make(geometries.agave, materials.succulent, instances.agave, 'KD garden agaves'),
       make(geometries.topiary, materials.boxwood, instances.topiary, 'KD garden topiaries'),
       make(geometries.trunk, materials.trunk, instances.palm, 'KD garden palm trunks'),
-      make(geometries.crown, materials.foliage, crowns, 'KD garden palm crowns'),
+      make(geometries.crown, materials.fronds, crowns, 'KD garden palm crowns'),
     ].filter(Boolean) as InstancedMesh[]
   }, [instances, geometries, materials, mobile])
 
   // Plants read a touch lighter at night, lifted by their uplights.
   useLayoutEffect(() => {
     materials.foliage.envMapIntensity = ambience.mode === 'night' ? 1.4 : .7
+    materials.fronds.envMapIntensity = ambience.mode === 'night' ? 1.4 : .7
   }, [ambience, materials])
+
+  useFrame((state) => { WIND_TIME.value = state.clock.elapsedTime })
 
   return <>{meshes?.map((mesh) => <primitive key={mesh.name} object={mesh} />)}</>
 }
