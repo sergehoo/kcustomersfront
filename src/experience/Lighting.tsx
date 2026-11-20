@@ -31,17 +31,32 @@ function sunLook(progress: number) {
   return { color: new Color(from.color).lerp(new Color(to.color), t), intensity: MathUtils.lerp(from.intensity, to.intensity, t) }
 }
 
-/** Warm interior fittings, kept local with distance/decay. */
+/**
+ * Warm interior fittings, kept local with distance/decay.
+ *
+ * `down` marks the ground-floor pendants and ceiling fittings. None of these
+ * lights casts a shadow, so as point lights they shone straight through the
+ * slab above them: the foot of every upstairs wall glowed orange and the
+ * bathtub was lit from underneath. A wide cone pointing down sends nothing
+ * above its own horizon.
+ */
 const LAMPS = [
-  { position: [-5.2, 5.9, 14.2] as const, color: '#ffd3a0', intensity: 14, distance: 8 },
-  { position: [-3.8, 6.35, 11.0] as const, color: '#ffcb8c', intensity: 16, distance: 9 },
-  { position: [2.8, 6.25, 8.9] as const, color: '#ffd09a', intensity: 12, distance: 8 },
-  { position: [-7.6, 5.7, 7.0] as const, color: '#f8c184', intensity: 10, distance: 7 },
+  { position: [-5.2, 5.9, 14.2] as const, color: '#ffd3a0', intensity: 14, distance: 8, down: true },
+  { position: [-3.8, 6.35, 11.0] as const, color: '#ffcb8c', intensity: 16, distance: 9, down: true },
+  { position: [2.8, 6.25, 8.9] as const, color: '#ffd09a', intensity: 12, distance: 8, down: true },
+  { position: [-7.6, 5.7, 7.0] as const, color: '#f8c184', intensity: 10, distance: 7, down: true },
   // Foot of the stair: kept soft, it sits two metres from the climbing camera.
-  { position: [1.0, 6.6, 14.2] as const, color: '#ffd7a8', intensity: 6, distance: 7 },
-  { position: [-1.0, 8.9, 11.5] as const, color: '#ffd2a0', intensity: 12, distance: 8 },
+  { position: [1.0, 6.6, 14.2] as const, color: '#ffd7a8', intensity: 6, distance: 7, down: true },
+  { position: [-1.0, 8.9, 11.5] as const, color: '#ffd2a0', intensity: 12, distance: 8, down: false },
   // Hall, over the console: the only room no other fitting reached.
-  { position: [4.6, 6.4, 14.0] as const, color: '#ffd3a0', intensity: 7, distance: 6 },
+  { position: [4.6, 6.4, 14.0] as const, color: '#ffd3a0', intensity: 7, distance: 6, down: true },
+  // Master bathroom, over the tub: it has no window of its own, and used to
+  // be lit by the kitchen pendant through the floor.
+  { position: [-5.4, 9.25, 14.3] as const, color: '#ffe4c8', intensity: 5, distance: 6.5, down: false, day: 1.5 },
+  // Bedroom 2: the upper floor no longer borrows light from the rooms below.
+  // Hung in the middle of the room, not at the bedside lamp — that close to
+  // the pillows and the headboard it burnt them out.
+  { position: [3.2, 9.05, 10.2] as const, color: '#ffd2a0', intensity: 4, distance: 6, down: false },
 ]
 
 /**
@@ -78,7 +93,7 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
   const bounce = useRef<HemisphereLight>(null)
   const nightFill = useRef<HemisphereLight>(null)
   const pool = useRef<PointLight>(null)
-  const lamps = useRef<(PointLight | null)[]>([])
+  const lamps = useRef<(PointLight | SpotLight | null)[]>([])
   const facade = useRef<(SpotLight | null)[]>([])
   const steps = useRef<(PointLight | null)[]>([])
   const sun = useMemo(() => new Vector3(), [])
@@ -91,6 +106,7 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
     // Spot targets are not in the scene graph, so their world matrix is never
     // refreshed on its own: without this every wash aimed at the origin.
     facade.current.forEach((light) => light?.target.updateMatrixWorld())
+    lamps.current.forEach((light) => { if (light && 'target' in light) light.target.updateMatrixWorld() })
   }, [target])
 
   // Every light stays mounted for the whole visit and is faded by intensity
@@ -127,7 +143,11 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
     // Lamps are an accent in a daylight room, not its light source.
     // By night every lamp is on, seen from outside as much as from inside.
     lamps.current.forEach((light, index) => {
-      if (light) light.intensity = LAMPS[index].intensity * (night ? ambience.lamps : .2 + inside * .2)
+      if (!light) return
+      const lamp: { intensity: number; day?: number } = LAMPS[index]
+      // A windowless room keeps its fitting on by day (`day`); elsewhere the
+      // lamps are an accent in a daylight room, not its light source.
+      light.intensity = lamp.intensity * (night ? ambience.lamps : lamp.day ? lamp.day * inside : .2 + inside * .2)
     })
     facade.current.forEach((light, index) => {
       if (light) light.intensity = FACADE_LIGHTS[index].intensity * ambience.facade * (night ? 1 : arrival)
@@ -147,7 +167,9 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
       castShadow={!mobile}
       color="#fff0dc"
       intensity={4.4}
-      shadow-mapSize={mobile ? [512, 512] : [2048, 2048]}
+      // 4096 over a 50 m frustum: ~1.2 cm a texel, so a mullion or a chair leg
+      // draws its own edge on the floor instead of a soft smear.
+      shadow-mapSize={mobile ? [512, 512] : [4096, 4096]}
       shadow-camera-near={10}
       shadow-camera-far={120}
       shadow-camera-left={-25}
@@ -156,7 +178,7 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
       shadow-camera-bottom={-25}
       shadow-bias={-.00018}
       shadow-normalBias={.035}
-      shadow-radius={2.5}
+      shadow-radius={2.2}
     />
     {!mobile && FACADE_LIGHTS.map((light, index) => <spotLight
       key={`facade-${index}`}
@@ -187,14 +209,27 @@ export function Lighting({ progress, mobile, ambience }: { progress: number; mob
       distance={POOL_LIGHT.distance}
       decay={2}
     />}
-    {LAMPS.slice(0, mobile ? 3 : LAMPS.length).map((lamp, index) => <pointLight
-      key={index}
-      ref={(node) => { lamps.current[index] = node }}
-      position={lamp.position}
-      color={lamp.color}
-      intensity={lamp.intensity}
-      distance={lamp.distance}
-      decay={2}
-    />)}
+    {LAMPS.slice(0, mobile ? 3 : LAMPS.length).map((lamp, index) => lamp.down
+      ? <spotLight
+        key={index}
+        ref={(node) => { lamps.current[index] = node }}
+        position={lamp.position}
+        target-position={[lamp.position[0], lamp.position[1] - 1, lamp.position[2]]}
+        color={lamp.color}
+        intensity={lamp.intensity}
+        distance={lamp.distance}
+        angle={1.3}
+        penumbra={.55}
+        decay={2}
+      />
+      : <pointLight
+        key={index}
+        ref={(node) => { lamps.current[index] = node }}
+        position={lamp.position}
+        color={lamp.color}
+        intensity={lamp.intensity}
+        distance={lamp.distance}
+        decay={2}
+      />)}
   </>
 }

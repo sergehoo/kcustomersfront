@@ -64,19 +64,23 @@ export function CameraRig({ progress, mobile, exposure = 1, interiorExposure = 1
      * that actually show; this shoots a ray through a normalised screen point and
      * reports what is there, so planting can be aimed at the pixels that are bare.
      */
-    ;(window as unknown as Record<string, unknown>).__probeAt = (nx: number, ny: number) => {
+    ;(window as unknown as Record<string, unknown>).__probeAt = (nx: number, ny: number, depth = 1) => {
       raycaster.setFromCamera(new Vector2(nx, ny), camera)
-      const hit = raycaster.intersectObjects(scene.children, true)
-        .find((item) => (item.object as { visible?: boolean }).visible !== false)
-      if (!hit) return null
-      const material = (hit.object as unknown as { material?: { name?: string } | { name?: string }[] }).material
-      const name = Array.isArray(material) ? material[0]?.name : material?.name
-      return {
-        object: hit.object.name,
-        material: name ?? null,
-        point: [+hit.point.x.toFixed(2), +hit.point.y.toFixed(2), +hit.point.z.toFixed(2)],
-        distance: +hit.distance.toFixed(2),
-      }
+      const hits = raycaster.intersectObjects(scene.children, true)
+        .filter((item) => (item.object as { visible?: boolean }).visible !== false)
+        .slice(0, depth)
+        .map((hit) => {
+          const material = (hit.object as unknown as { material?: { name?: string } | { name?: string }[] }).material
+          const name = Array.isArray(material) ? material[0]?.name : material?.name
+          return {
+            object: hit.object.name,
+            material: name ?? null,
+            point: [+hit.point.x.toFixed(2), +hit.point.y.toFixed(2), +hit.point.z.toFixed(2)],
+            distance: +hit.distance.toFixed(2),
+          }
+        })
+      // One hit by default; `depth` > 1 lists what lies behind (through glazing).
+      return depth > 1 ? hits : hits[0] ?? null
     }
   }
 

@@ -227,6 +227,9 @@ export function CustomerCareExperience() {
     <div className="experience-stage" aria-hidden="true">
       {webgl === true ? <Canvas
         shadows={mobile ? false : 'percentage'}
+        // Capped on purpose. A higher ratio costs more than it shows once the
+        // finishing pass sharpens the frame, and the performance monitor's only
+        // answer to a slow frame is to fall back to 1 for good.
         dpr={mobile ? [1, 1.2] : [1, 1.25]}
         // `far` reaches the sea horizon; antialiasing is SMAA in PostEffects, so
         // the default framebuffer needs no MSAA of its own.

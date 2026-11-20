@@ -1,9 +1,10 @@
 import { Bloom, BrightnessContrast, EffectComposer, HueSaturation, N8AO, SMAA, ToneMapping, Vignette } from '@react-three/postprocessing'
 import { ToneMappingMode } from 'postprocessing'
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { HalfFloatType, MathUtils } from 'three'
 import { insideAt } from './interior'
+import { FinishEffect } from './realism/finish'
 
 /**
  * Photographic finishing, in the order a camera would apply it.
@@ -17,6 +18,7 @@ import { insideAt } from './interior'
  *   shifted hues and crushed the shade side of every façade.
  * - A whisper of bloom on genuine highlights (sun glints, lamp lenses) and a
  *   lens vignette. No grain, no chromatic aberration: premium, not stylised.
+ * - A print sharpen and a light grade, last (realism/finish.ts).
  */
 // Occlusion at the scale of each space. Outside, a 2 m radius grounds the
 // façade, the stair and the planters seen from 15–30 m. Indoors every wall,
@@ -32,6 +34,9 @@ type AOConfiguration = { transparencyAware: boolean; aoRadius: number; intensity
 export function PostEffects({ mobile, progress, bloom = .32 }: { mobile: boolean; progress: number; bloom?: number }) {
   // n8ao ships no types.
   const ao = useRef<{ configuration: AOConfiguration } | null>(null)
+  // Phones keep a lighter sharpen: their pixels are already finer than the eye.
+  const finish = useMemo(() => new FinishEffect({ sharpness: mobile ? .35 : .6 }), [mobile])
+  useEffect(() => () => finish.dispose(), [finish])
   useEffect(() => {
     // Not exposed as a prop. Transparency-aware AO re-renders every
     // transparent mesh — all the glazing — in an extra pass, and clear glass
@@ -70,5 +75,6 @@ export function PostEffects({ mobile, progress, bloom = .32 }: { mobile: boolean
     <HueSaturation saturation={.06} />
     <BrightnessContrast contrast={.07} />
     <Vignette offset={.32} darkness={.42} />
+    <primitive object={finish} dispose={null} />
   </EffectComposer>
 }

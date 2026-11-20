@@ -19,6 +19,7 @@ Run last in the chain:
       --python blender/scripts/restructure_volumes.py \\
       --python blender/scripts/furnish_interiors.py \\
       --python blender/scripts/refine_details.py \\
+      --python blender/scripts/refine_textiles.py \\
       --python blender/scripts/camera_shots.py \\
       --python blender/scripts/merge_furniture.py
 """

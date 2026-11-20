@@ -2,7 +2,7 @@ import { mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
-import { dedup, instance, meshopt, prune, simplify, textureCompress, weld } from '@gltf-transform/functions'
+import { createTransform, dedup, instance, meshopt, prune, simplifyPrimitive, textureCompress, weld } from '@gltf-transform/functions'
 import { MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer'
 import sharp from 'sharp'
 
@@ -19,9 +19,34 @@ const source = new URL('../assets-source/models/kaydan-villa-production.glb', im
  * simplifies with an error budget expressed as a fraction of the model extent.
  */
 const VARIANTS = [
-  { filename: 'kaydan-villa-production-web.glb', resolution: 1024, quality: 78, ratio: .22, error: .004 },
-  { filename: 'kaydan-villa-production-mobile.glb', resolution: 512, quality: 70, ratio: .10, error: .009 },
+  { filename: 'kaydan-villa-production-web.glb', resolution: 1024, quality: 78, ratio: .22, error: .004, draperyRatio: 1 },
+  { filename: 'kaydan-villa-production-mobile.glb', resolution: 512, quality: 70, ratio: .10, error: .009, draperyRatio: .5 },
 ]
+
+/**
+ * Hung fabric (blender/scripts/refine_textiles.py) is authored at the density
+ * its folds need. Simplified with everything else, a curtain kept a fifth of
+ * its triangles and its pleats collapsed back into a flat panel — so the web
+ * model keeps it whole and the mobile one halves it at most.
+ */
+const DRAPERY = /^KAYDAN_(SHEER|DRAPE_LINEN)$/
+
+/** `simplify()` with a per-material exception; the library's own has no filter. */
+function simplifyExceptDrapery({ draperyRatio, ...options }) {
+  return createTransform('simplifyExceptDrapery', async (document) => {
+    await document.transform(weld({ overwrite: false }))
+    for (const mesh of document.getRoot().listMeshes()) {
+      for (const primitive of mesh.listPrimitives()) {
+        if (primitive.getMode() !== 4) continue
+        const drapery = DRAPERY.test(primitive.getMaterial()?.getName() ?? '')
+        if (drapery && draperyRatio >= 1) continue
+        simplifyPrimitive(primitive, drapery ? { ...options, ratio: draperyRatio, error: .0006 } : options)
+        if (!primitive.getIndices()?.getCount()) primitive.dispose()
+      }
+      if (mesh.listPrimitives().length === 0) mesh.dispose()
+    }
+  })
+}
 
 /** Modelling leftover: a 20 m sofa parked 45 m behind the villa, 41 m in the air. */
 const ORPHANS = ['Modern Living Room_Sofa_0']
@@ -53,7 +78,7 @@ function dropOrphans(document) {
   }
 }
 
-async function optimize({ filename, resolution, quality, ratio, error }) {
+async function optimize({ filename, resolution, quality, ratio, error, draperyRatio }) {
   const output = new URL(`../public/models/production/${filename}`, import.meta.url)
   const document = await io.read(source.pathname)
   const before = countTriangles(document)
@@ -64,7 +89,7 @@ async function optimize({ filename, resolution, quality, ratio, error }) {
     instance({ min: 2 }),
     prune({ keepAttributes: false, keepLeaves: false }),
     weld(),
-    simplify({ simplifier: MeshoptSimplifier, ratio, error, lockBorder: true }),
+    simplifyExceptDrapery({ simplifier: MeshoptSimplifier, ratio, error, lockBorder: true, draperyRatio }),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [resolution, resolution], quality, effort: 6 }),
     meshopt({ encoder: MeshoptEncoder, level: 'high' }),
   )

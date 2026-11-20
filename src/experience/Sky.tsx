@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo } from 'react'
 import { BackSide, Color, EquirectangularReflectionMapping, MathUtils, ShaderMaterial, SRGBColorSpace, Vector3 } from 'three'
 import type { Fog, Texture } from 'three'
 import type { Ambience } from './ambience'
-import { TOUR_MARKS } from './tour'
+import { TOUR_MARKS, TOUR_STOPS } from './tour'
 
 /**
  * Photographic sky, split in two on purpose:
@@ -48,6 +48,19 @@ type SkyStop = {
  * shadow towards the lens. Around −76° it stands over the pool, lighting the
  * south terrace and reaching into the rooms through the south glazing.
  */
+/**
+ * The garden shots look back at the entrance front from the north-west. With
+ * the sun left over the pool, that front was a flat grey wall under a bright
+ * sky. The sun comes back round to the entrance side while the camera walks
+ * from the pool to the garden, and returns south for the closing aerial.
+ */
+const GARDEN = (() => {
+  const shots = TOUR_STOPS.filter((stop) => stop.room === 'garden' && stop.shot !== null)
+  const first = TOUR_STOPS.indexOf(TOUR_STOPS.find((stop) => stop.room === 'garden')!)
+  const closing = TOUR_STOPS.find((stop) => stop.room === 'finale' && stop.shot !== null)!
+  return { from: TOUR_STOPS[first - 1].leave, arrive: shots[0].arrive, leave: shots[shots.length - 1].leave, closing: closing.arrive }
+})()
+
 const STOPS: SkyStop[] = [
   { at: 0, sunAzimuth: 105, sunElevation: 33, skyIntensity: 1, envIntensity: .72, fog: '#c4ccd3' },
   { at: TOUR_MARKS.enter[0], sunAzimuth: 100, sunElevation: 33, skyIntensity: 1, envIntensity: .72, fog: '#c4ccd3' },
@@ -59,6 +72,10 @@ const STOPS: SkyStop[] = [
   { at: TOUR_MARKS.enter[1], sunAzimuth: -76, sunElevation: 17, skyIntensity: 1, envIntensity: .55, fog: '#c4ccd3' },
   { at: TOUR_MARKS.exit[0], sunAzimuth: -80, sunElevation: 17, skyIntensity: 1, envIntensity: .55, fog: '#c7cdd2' },
   { at: TOUR_MARKS.exit[1], sunAzimuth: -70, sunElevation: 26, skyIntensity: 1, envIntensity: .72, fog: '#c9cdd0' },
+  { at: GARDEN.from, sunAzimuth: -70, sunElevation: 26, skyIntensity: 1, envIntensity: .72, fog: '#c9cdd0' },
+  { at: GARDEN.arrive, sunAzimuth: 110, sunElevation: 31, skyIntensity: 1, envIntensity: .76, fog: '#c6ccd2' },
+  { at: GARDEN.leave, sunAzimuth: 110, sunElevation: 31, skyIntensity: 1, envIntensity: .76, fog: '#c6ccd2' },
+  { at: GARDEN.closing, sunAzimuth: -72, sunElevation: 24, skyIntensity: 1, envIntensity: .72, fog: '#cbcdcd' },
   { at: 1, sunAzimuth: -72, sunElevation: 24, skyIntensity: 1, envIntensity: .72, fog: '#cbcdcd' },
 ]
 
@@ -173,8 +190,10 @@ export function DaylightSky({ progress, mobile, degraded, ambience }: { progress
   })
 
   return <>
-    {/* Haze only far out, where the sea meets the sky. */}
-    <fog attach="fog" args={['#c4ccd3', 220, 1400]} />
+    {/* Aerial perspective: nothing on the plot (under 70 m), a third of the
+        way to the sky colour on the hills across the valley, the horizon
+        dissolved. It is what sets the villa in front of its landscape. */}
+    <fog attach="fog" args={['#c4ccd3', 70, 1150]} />
     <Environment files={SKY_LIGHTING} />
     <mesh material={nightDome} visible={!day} renderOrder={-10} frustumCulled={false} name="KD night dome">
       <sphereGeometry args={[2000, 48, 24]} />

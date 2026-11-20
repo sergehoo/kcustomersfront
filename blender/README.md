@@ -86,6 +86,19 @@ The east bank is cut with straight `bisect` planes before any face is
 deleted (the terrain's triangles are ~1.7 m), then held by a low wall, a
 planted shelf and an upper wall, with the natural bank behind.
 
+## Look-dev maps
+
+The tiling detail maps the runtime projects in world space (marble veining,
+limestone bedding, linen, bouclé, rug pile, bed creases, water ripples,
+caustics) are synthesised, not downloaded:
+
+```bash
+python3 scripts/generate_detail_textures.py     # → public/assets/materials/detail/
+```
+
+Their recipes — which material takes which map, at what scale — live in
+`src/experience/ExteriorVilla.tsx` (`recipes`).
+
 ## Furnishing and camera shots
 
 The full chain, always from the pre-restructuring blend:
@@ -97,6 +110,7 @@ blender -b blender/backup-avant-restructuration-2026-11-19/kaydan-villa-producti
   --python blender/scripts/restructure_volumes.py \
   --python blender/scripts/furnish_interiors.py \
   --python blender/scripts/refine_details.py \
+  --python blender/scripts/refine_textiles.py \
   --python blender/scripts/camera_shots.py \
   --python blender/scripts/merge_furniture.py
 npm run optimize:production
@@ -116,6 +130,13 @@ head, hand shower, niche, linear drain), and both beds' soft goods — duvet,
 turned-down band and runner draped by a cloth simulation, shaped pillows, a
 linen weave. The shots aimed at those pieces have pinned targets
 (`PINNED` in `camera_shots.py`), so remodelling them never moves a framing.
+
+`refine_textiles.py` hangs the curtains as fabric — a gathered heading, folds
+of uneven width and depth that loosen towards the hem, sheers in `KAYDAN_SHEER`
+and lined drapes in `KAYDAN_DRAPE_LINEN` (UV: arc length across, 0 → 1 up the
+panel, which weights the runtime sway) — and flattens the pool's water surface
+at 11 cm under the coping. `npm run optimize:production` leaves those two
+materials out of mesh simplification, which flattened the pleats.
 
 `camera_shots.py` holds the visit's compositions: per room an overview and
 focus shots, each aimed at a `TARGET_*` anchor on real furniture, and the
