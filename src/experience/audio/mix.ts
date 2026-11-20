@@ -8,7 +8,7 @@ import type { Mix, SoundMode } from './engine'
  *
  * Levels are gains on layers that all sit at a comparable loudness, so the
  * numbers read as a mix: music around .15, the garden between .10 and .15,
- * the television near .10, the pool up to .19. Nothing is switched on or off
+ * the pool up to .19, the television's film at .32 over a ducked music. Nothing is switched on or off
  * by a threshold: `mixAt` blends a room's row into the next one while the
  * camera travels between them, the way the lighting is interpolated, and the
  * engine then glides every gain to its target.
@@ -19,11 +19,13 @@ import type { Mix, SoundMode } from './engine'
 const ROOMS: Record<RoomId, Mix> = {
   exterior:    { music: .16, exterior: .10, birds: .15, wind: .13, room: 0,    tv: 0,    pool: 0 },
   entrance:    { music: .16, exterior: .09, birds: .13, wind: .11, room: 0,    tv: 0,    pool: 0 },
-  visitor:     { music: .15, exterior: .03, birds: .03, wind: .035, room: .05, tv: .02,  pool: 0 },
-  living:      { music: .14, exterior: .02, birds: .02, wind: .03, room: .05,  tv: .11,  pool: 0 },
-  dining:      { music: .15, exterior: .015, birds: .015, wind: .02, room: .05, tv: .06, pool: 0 },
-  kitchen:     { music: .15, exterior: .015, birds: .015, wind: .02, room: .05, tv: .03, pool: 0 },
-  circulation: { music: .16, exterior: .01, birds: .01, wind: .015, room: .05, tv: .02,  pool: 0 },
+  visitor:     { music: .15, exterior: .03, birds: .03, wind: .035, room: .05, tv: 0,  pool: 0 },
+  // The living room's `tv` is the level of the film on its screen — heard
+  // only while it plays, and then the music ducks under it (SoundDesign.tsx).
+  living:      { music: .14, exterior: .02, birds: .02, wind: .03, room: .05,  tv: .32,  pool: 0 },
+  dining:      { music: .15, exterior: .015, birds: .015, wind: .02, room: .05, tv: 0, pool: 0 },
+  kitchen:     { music: .15, exterior: .015, birds: .015, wind: .02, room: .05, tv: 0, pool: 0 },
+  circulation: { music: .16, exterior: .01, birds: .01, wind: .015, room: .05, tv: 0,  pool: 0 },
   // Bedrooms: calm. The curtains move, so a breath of wind stays.
   suite:       { music: .14, exterior: .012, birds: .012, wind: .03, room: .045, tv: 0,  pool: 0 },
   // No tap is running: near-silence is the luxury here.

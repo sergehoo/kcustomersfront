@@ -13,6 +13,8 @@ import { Garden } from './Garden'
 import { NightLights } from './NightLights'
 import { Birds } from './Birds'
 import { SoundDesign } from './audio/SoundDesign'
+import { Television } from './Television'
+import { sectionAt } from './sections'
 import type { Ambience } from './ambience'
 
 /**
@@ -66,10 +68,13 @@ export function Scene({ progress, mobile, debug3d, onReady, ambience }: { progre
     <Lighting progress={progress} mobile={mobile} ambience={ambience} />
     <ExteriorVilla mobile={mobile} ambience={ambience} progress={progress} />
     <Surroundings model={villaModel(mobile)} />
-    <Garden mobile={mobile} ambience={ambience} />
+    <Garden mobile={mobile} ambience={ambience} progress={progress} />
     <NightLights ambience={ambience} />
     <Birds ambience={ambience} />
     <SoundDesign progress={progress} ambience={ambience} />
+    {/* The room, not the scroll position: true from the living room's first
+        frame to its last, whatever happens between its shots. */}
+    <Television active={sectionAt(progress).id === 'living'} night={ambience.mode === 'night'} />
     <PostEffects mobile={mobile} progress={progress} bloom={ambience.bloom} />
     {debug3d && <Debug3D progress={progress} mobile={mobile} />}
     <Warmup onReady={onReady} />

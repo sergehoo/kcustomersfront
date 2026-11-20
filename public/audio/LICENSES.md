@@ -1,10 +1,11 @@
 # Audio de la visite
 
-Seule la musique est un fichier. Tout le reste du paysage sonore — vent,
-feuillages, oiseaux, insectes nocturnes, fond de pièce, eau de la piscine,
-télévision — est synthétisé dans le navigateur par
+La musique et le film de la télévision sont des fichiers. Tout le reste du
+paysage sonore — vent, feuillages, oiseaux, envol, insectes nocturnes, fond de
+pièce, eau de la piscine — est synthétisé dans le navigateur par
 `src/experience/audio/engine.ts` : aucun enregistrement, aucune licence à suivre.
-La télévision est un murmure sans paroles ; elle n'imite aucune chaîne réelle.
+Le son de la télévision du salon est celui du film de présentation Kaydan
+(`public/media/`, voir son propre fichier de licences).
 
 | Fichier servi | Source | Préparation |
 | --- | --- | --- |

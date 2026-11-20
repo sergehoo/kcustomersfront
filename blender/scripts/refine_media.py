@@ -1,16 +1,15 @@
 """Hangs a television in the living room, after refine_textiles.py.
 
-The visit's sound design plays a news programme, low, from the living room
-(src/experience/audio). A sound with no source in the picture is a bug, so
-the room gets its screen: a slim 65-inch panel on the chimney breast, facing
-the sofa, where the canvas hung. The canvas goes; nothing else moves.
+The living room has a screen: a slim 65-inch panel on the chimney breast,
+facing the sofa, where the canvas hung. The canvas goes; nothing else moves.
+At runtime it plays Kaydan's presentation film (src/experience/Television.tsx),
+whose sound the visit's audio engine places in the room.
 
 * `Living_TV` — the panel: a 38 mm black body with a 9 mm bezel.
-* `Living_TV_Screen` — the picture, material `KAYDAN_TV_SCREEN`. Its image is
-  drawn here (no download, no channel's branding): a studio in soft blue, a
-  presenter's desk as two blocks of light, a lower third and a ticker strip
-  as plain bars. The runtime keeps it lit by day and by night and lets it
-  flicker faintly, as a programme does.
+* `Living_TV_Screen` — the picture, material `KAYDAN_TV_SCREEN`. The image
+  drawn here (a generic studio, no channel's branding) is only what the model
+  shows on its own, in Blender or if the film cannot load: the runtime
+  replaces it with the film and keeps the screen lit by day and by night.
 
 The living-room shots are aimed at fixed anchors (camera_shots.py), so no
 framing depends on the canvas that is removed.

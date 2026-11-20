@@ -7,6 +7,7 @@ import {
 import type { Ambience } from './ambience'
 import { applyVariation } from './realism/materialVariation'
 import { applyWind, WIND_TIME } from './realism/wind'
+import { PalmBirds } from './PalmBirds'
 
 /**
  * A structured, mineral-and-architectural garden in the spirit of modern
@@ -154,25 +155,53 @@ function strip(b: Builder, points: Vector3[], across: Vector3, width: (t: number
  * old ones hang — and along each frond the leaflets start short, lengthen,
  * taper off, and droop under their own weight from a rib that also curls.
  */
-function palmCrown() {
+type Frond = { age: number; angle: number; length: number; lift: number; droop: number; curl: number }
+
+/** The crown's fronds, youngest first: one set, shared by every palm. */
+const FRONDS: Frond[] = (() => {
   const random = rng(23)
+  const count = 22
+  return Array.from({ length: count }, (_, f) => {
+    const age = f / (count - 1)
+    return {
+      age,
+      // Golden angle: no two fronds ever stack.
+      angle: f * 2.39996 + (random() - .5) * .35,
+      length: 2.0 + random() * .65 - Math.abs(age - .45) * .5,
+      lift: 1.25 - age * 1.2 + (random() - .5) * .18,
+      droop: .68 + age * .34 + random() * .2,
+      curl: (random() - .5) * .55,
+    }
+  })
+})()
+
+const UP = new Vector3(0, 1, 0)
+
+/** A point on a frond's rib, `t` from the crown (0) to the tip (1), in the crown's own space. */
+function ribPoint(frond: Frond, t: number) {
+  const direction = new Vector3(Math.cos(frond.angle), 0, Math.sin(frond.angle))
+  const side = new Vector3(-direction.z, 0, direction.x)
+  return direction.multiplyScalar(frond.length * t * (1 - .1 * t))
+    .addScaledVector(side, frond.curl * t * t * .45)
+    .addScaledVector(UP, frond.length * (frond.lift * .5 * t - frond.droop * .6 * t * t))
+}
+
+/**
+ * Where a bird can sit: a third of the way out on the fronds that arch
+ * closest to level, where the rib is thick enough to carry it. Crown space.
+ */
+const PALM_PERCHES = [5, 8, 6, 9, 7].map((index) => ribPoint(FRONDS[index], .3 + (index % 3) * .05))
+
+function palmCrown() {
+  const random = rng(29)
   const b: Builder = { positions: [], colors: [], indices: [] }
-  const up = new Vector3(0, 1, 0)
+  const up = UP
   const young = new Color('#5b7a30'), mature = new Color('#4c692c'), old = new Color('#7d8045')
-  const fronds = 22
-  for (let f = 0; f < fronds; f += 1) {
-    const age = f / (fronds - 1)
-    // Golden angle: no two fronds ever stack.
-    const angle = f * 2.39996 + (random() - .5) * .35
-    const length = 2.0 + random() * .65 - Math.abs(age - .45) * .5
-    const lift = 1.25 - age * 1.2 + (random() - .5) * .18
-    const droop = .68 + age * .34 + random() * .2
-    const curl = (random() - .5) * .55
-    const direction = new Vector3(Math.cos(angle), 0, Math.sin(angle))
+  for (const frond of FRONDS) {
+    const { age } = frond
+    const direction = new Vector3(Math.cos(frond.angle), 0, Math.sin(frond.angle))
     const side = new Vector3(-direction.z, 0, direction.x)
-    const rib = (t: number) => direction.clone().multiplyScalar(length * t * (1 - .1 * t))
-      .addScaledVector(side, curl * t * t * .45)
-      .addScaledVector(up, length * (lift * .5 * t - droop * .6 * t * t))
+    const rib = (t: number) => ribPoint(frond, t)
     const green = (age < .5 ? young.clone().lerp(mature, age * 2) : mature.clone().lerp(old, (age - .5) * 1.5)).multiplyScalar(.9 + random() * .22)
     const pale = green.clone().lerp(new Color('#a5b25c'), .45)
 
@@ -253,7 +282,7 @@ const ZONES: Zone[] = [
 /** A pair at the outer ends of the upper tier, clear of the door axis, and one on the west lawn. */
 const PALMS: [number, number, number][] = [[-1.05, 20.5, 4.1], [9.6, 20.5, 4.1], [-10.6, 27.6, 3.9]]
 
-export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambience }) {
+export function Garden({ mobile, ambience, progress }: { mobile: boolean; ambience: Ambience; progress: number }) {
   const scene = useThree((state) => state.scene)
   const [instances, setInstances] = useState<Record<Kind, Matrix4[]> | null>(null)
 
@@ -338,6 +367,20 @@ export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambien
     setInstances(result)
   }, [scene, mobile])
 
+  // Crowns sit on top of each trunk, scaled to the trunk's height.
+  const crowns = useMemo(() => (instances?.palm ?? []).map((matrix) => {
+    const position = new Vector3(), rotation = new Quaternion(), scale = new Vector3()
+    matrix.decompose(position, rotation, scale)
+    // The trunk's lean is .35 m at its top (see palmTrunk), turned with the trunk.
+    const top = new Vector3(.35, scale.y, 0).applyQuaternion(rotation)
+    return new Matrix4().compose(position.clone().add(top), rotation, new Vector3(1, 1, 1))
+  }), [instances])
+
+  // Three birds on the palm right of the stair, two on the one to its left.
+  const perches = useMemo(() => ([[1, 0], [1, 1], [1, 2], [0, 3], [0, 4]] as const)
+    .filter(([crown]) => crowns[crown])
+    .map(([crown, perch]) => PALM_PERCHES[perch].clone().applyMatrix4(crowns[crown])), [crowns])
+
   const meshes = useMemo(() => {
     if (!instances) return null
     const make = (geometry: BufferGeometry, material: MeshStandardMaterial, matrices: Matrix4[], name: string, cast = true) => {
@@ -350,14 +393,6 @@ export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambien
       mesh.computeBoundingSphere()
       return mesh
     }
-    // Crowns sit on top of each trunk, scaled to the trunk's height.
-    const crowns = instances.palm.map((matrix) => {
-      const position = new Vector3(), rotation = new Quaternion(), scale = new Vector3()
-      matrix.decompose(position, rotation, scale)
-      // The trunk's lean is .35 m at its top (see palmTrunk), turned with the trunk.
-      const top = new Vector3(.35, scale.y, 0).applyQuaternion(rotation)
-      return new Matrix4().compose(position.clone().add(top), rotation, new Vector3(1, 1, 1))
-    })
     return [
       make(geometries.grass, materials.foliage, instances.grass, 'KD garden grasses'),
       make(geometries.agave, materials.succulent, instances.agave, 'KD garden agaves'),
@@ -365,7 +400,7 @@ export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambien
       make(geometries.trunk, materials.trunk, instances.palm, 'KD garden palm trunks'),
       make(geometries.crown, materials.fronds, crowns, 'KD garden palm crowns'),
     ].filter(Boolean) as InstancedMesh[]
-  }, [instances, geometries, materials, mobile])
+  }, [instances, crowns, geometries, materials, mobile])
 
   // Plants read a touch lighter at night, lifted by their uplights.
   useLayoutEffect(() => {
@@ -375,5 +410,8 @@ export function Garden({ mobile, ambience }: { mobile: boolean; ambience: Ambien
 
   useFrame((state) => { WIND_TIME.value = state.clock.elapsedTime })
 
-  return <>{meshes?.map((mesh) => <primitive key={mesh.name} object={mesh} />)}</>
+  return <>
+    {meshes?.map((mesh) => <primitive key={mesh.name} object={mesh} />)}
+    {perches.length > 0 && <PalmBirds perches={perches} mobile={mobile} progress={progress} visible={ambience.daySky} />}
+  </>
 }

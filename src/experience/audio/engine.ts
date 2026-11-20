@@ -7,7 +7,7 @@
  *   ├── birds        calls, never a loop: a phrase now and then
  *   ├── wind         a body of air that follows the same gusts as the plants
  *   ├── room         interior room tone
- *   ├── tv           a news programme murmured from the living-room screen (3D)
+ *   ├── tv           the sound of the film on the living-room screen (3D)
  *   ├── pool         water lapping against the coping
  *   └── ui           the one soft cue of the sound control
  *
@@ -16,11 +16,13 @@
  * layer (mix.ts); this file only knows how to make the sounds and how to
  * move a gain smoothly.
  *
- * Everything but the music is synthesised in the browser — filtered noise,
- * a few oscillators — so the soundscape costs no download, can follow the
- * picture frame by frame (gusts, a bird crossing the sky) and has no
- * licence to track. The television is a formant murmur with the cadence of
- * a newsreader: no words, so no real broadcast is imitated.
+ * The garden, the rooms and the water are synthesised in the browser —
+ * filtered noise, a few oscillators — so that part of the soundscape costs no
+ * download, can follow the picture frame by frame (gusts, a bird crossing the
+ * sky) and has no licence to track. The television is the one layer that
+ * comes from outside: the soundtrack of the video its screen plays
+ * (Television.tsx), routed through here so that it is placed in the room,
+ * faded like everything else and silenced by the same mute.
  *
  * Browsers only allow sound after a gesture: `start()` must be called from a
  * click or a key press. Until then nothing is created at all.
@@ -42,28 +44,17 @@ const MUSIC: Record<SoundMode, { url: string; lead: number; period: number }> = 
 const LAYERS: LayerId[] = ['music', 'exterior', 'birds', 'wind', 'room', 'tv', 'pool', 'ui']
 /** Seconds for a layer to cover ~63 % of a change: about 1.5 s to settle. */
 const FADE = .5
+/**
+ * The two layers of the television's hand-over move faster: the film is up
+ * in about 0.7 s and the music has ducked under it within a second.
+ */
+const FADES: Partial<Record<LayerId, number>> = { tv: .22, music: .32 }
 /** How far ahead of the clock events are written. */
 const AHEAD = .7
-
-/** Formants of the vowels a French newsreader lands on, in Hz. */
-const VOWELS: [number, number, number][] = [
-  [730, 1250, 2550], [420, 2050, 2700], [300, 2250, 3000], [480, 920, 2500],
-  [340, 820, 2400], [560, 1750, 2550], [390, 1650, 2450], [620, 1050, 2600],
-]
 
 const random = (low: number, high: number) => low + Math.random() * (high - low)
 
 type Track = { gain: GainNode; source: AudioBufferSourceNode | null; requested: boolean }
-
-type Voice = {
-  glottis: OscillatorNode
-  formants: BiquadFilterNode[]
-  envelope: GainNode
-  consonant: GainNode
-  clock: number
-  syllables: number
-  pitch: number
-}
 
 export class AudioExperience {
   private context: AudioContext | null = null
@@ -91,8 +82,9 @@ export class AudioExperience {
   private birdPan = 0
   private lastCall = -1
   private panner: PannerNode | null = null
-  private voice: Voice | null = null
-  private television: [number, number, number] = [-1.08, 5.45, 11.25]
+  private screen: HTMLMediaElement | null = null
+  private screenSource: MediaElementAudioSourceNode | null = null
+  private television: [number, number, number] = [.25, 5.45, 11.25]
 
   /** True once sound may actually be heard. */
   get audible() {
@@ -160,9 +152,8 @@ export class AudioExperience {
       const value = Math.max(0, mix[id])
       if (Math.abs((this.targets[id] ?? -1) - value) < .002) continue
       this.targets[id] = value
-      this.layers[id].gain.setTargetAtTime(value, now, FADE)
+      this.layers[id].gain.setTargetAtTime(value, now, FADES[id] ?? FADE)
     }
-    if (mix.tv > .004 && !this.voice) this.buildTelevision()
   }
 
   /** Where the camera is and where it looks, for the television. */
@@ -183,6 +174,16 @@ export class AudioExperience {
       listener.setPosition(position.x, position.y, position.z)
       listener.setOrientation(forward.x, forward.y, forward.z, 0, 1, 0)
     }
+  }
+
+  /**
+   * The video the living-room screen plays. Its sound leaves the element and
+   * enters the graph here — one place where it is heard, placed and muted. May
+   * be called before any gesture: the wiring waits for the context.
+   */
+  attachTelevision(element: HTMLMediaElement) {
+    this.screen = element
+    if (this.context) this.wireTelevision()
   }
 
   /** Where the screen hangs, read from the model. */
@@ -209,6 +210,30 @@ export class AudioExperience {
   setBirds(presence: number, pan: number) {
     this.birdPresence = presence
     this.birdPan = pan
+  }
+
+  /**
+   * A handful of birds leaving the palms: a few soft puffs of air, close
+   * together, thinning out as they get away. Silent if the sound is off.
+   */
+  flutter() {
+    const context = this.context
+    if (!context || this.muted || context.state !== 'running') return
+    const band = this.filter('bandpass', 1250, .9)
+    band.connect(this.layers.birds)
+    let at = context.currentTime + .04
+    for (let i = 0; i < 11; i += 1) {
+      const puff = context.createBufferSource()
+      const envelope = this.gain(0)
+      puff.buffer = this.noise.white!
+      envelope.gain.setValueAtTime(0, at)
+      envelope.gain.linearRampToValueAtTime(random(.5, .9) * (1 - i / 14), at + .012)
+      envelope.gain.exponentialRampToValueAtTime(.0005, at + .075)
+      puff.connect(envelope).connect(band)
+      puff.start(at, Math.random())
+      puff.stop(at + .1)
+      at += random(.06, .1) + i * .006
+    }
   }
 
   dispose() {
@@ -252,6 +277,7 @@ export class AudioExperience {
     this.buildRoom()
     this.buildPool()
     this.buildBirds()
+    this.wireTelevision()
     const now = context.currentTime
     this.lapClock = this.birdClock = this.insectClock = now + .5
   }
@@ -381,63 +407,26 @@ export class AudioExperience {
   }
 
   /**
-   * The living-room screen. Built the first time the scene asks for it: a
-   * voice that says nothing (a sawtooth through three moving formants, with
-   * the syllable rate, the phrasing and the falling pitch of a newsreader),
-   * a quiet bed under it, the whole thing band-limited like a flat screen's
-   * speakers and placed in space where the screen hangs.
+   * The screen's sound, in the room. A light touch on both counts: the film
+   * must stay intelligible from the sofa as from the fireplace, so distance
+   * only takes a little off, and the "flat-screen speaker" filtering only
+   * trims the extremes.
    */
-  private buildTelevision() {
-    const context = this.context!
+  private wireTelevision() {
+    const context = this.context
+    if (!context || !this.screen || this.screenSource) return
     const panner = context.createPanner()
     panner.panningModel = 'equalpower'
     panner.distanceModel = 'inverse'
-    panner.refDistance = 2.2
-    panner.rolloffFactor = 1.5
+    panner.refDistance = 3
+    panner.rolloffFactor = .6
     panner.maxDistance = 40
     this.place(panner)
     panner.connect(this.layers.tv)
     this.panner = panner
-
-    const speaker = this.filter('highpass', 260, .7)
-    const cabinet = this.filter('lowpass', 3100, .6)
-    speaker.connect(cabinet).connect(panner)
-
-    const glottis = context.createOscillator()
-    glottis.type = 'sawtooth'
-    glottis.frequency.value = 128
-    const envelope = this.gain(0)
-    const formants = [1, .55, .28].map((level, index) => {
-      const formant = this.filter('bandpass', VOWELS[0][index], 7 + index * 2)
-      glottis.connect(formant).connect(this.gain(level)).connect(envelope)
-      return formant
-    })
-    // Chest: a little of the source itself, well below the first formant.
-    glottis.connect(this.filter('lowpass', 320, .5)).connect(this.gain(.18)).connect(envelope)
-    envelope.connect(this.gain(.7)).connect(speaker)
-    glottis.start()
-
-    // Consonants: brief breaths of high noise between syllables.
-    const consonant = this.gain(0)
-    this.loop('white').connect(this.filter('highpass', 3200, .6)).connect(consonant).connect(this.gain(.16)).connect(speaker)
-
-    // News bed: a held fifth, barely pulsing.
-    const bed = this.gain(.05)
-    const pulse = context.createOscillator()
-    pulse.frequency.value = 1.6
-    const depth = this.gain(.022)
-    pulse.connect(depth).connect(bed.gain)
-    pulse.start()
-    for (const frequency of [110, 164.8, 220.4]) {
-      const tone = context.createOscillator()
-      tone.type = 'triangle'
-      tone.frequency.value = frequency
-      tone.connect(bed)
-      tone.start()
-    }
-    bed.connect(this.filter('lowpass', 900, .5)).connect(speaker)
-
-    this.voice = { glottis, formants, envelope, consonant, clock: context.currentTime + .4, syllables: 9, pitch: 1.1 }
+    // An element can feed one graph only, and only once.
+    this.screenSource = context.createMediaElementSource(this.screen)
+    this.screenSource.connect(this.filter('highpass', 140, .6)).connect(this.filter('lowpass', 9000, .5)).connect(panner)
   }
 
   // ── music ──────────────────────────────────────────────────────────────────
@@ -483,7 +472,6 @@ export class AudioExperience {
     this.scheduleWater(now, horizon)
     this.scheduleBirds(now)
     this.scheduleInsects(now, horizon)
-    if (this.voice) this.scheduleSpeech(now, horizon)
   }
 
   private scheduleWater(now: number, horizon: number) {
@@ -589,41 +577,6 @@ export class AudioExperience {
         this.insectPulse!.gain.linearRampToValueAtTime(0, start + .024)
       }
       this.insectClock = at + random(.55, 1.5)
-    }
-  }
-
-  private scheduleSpeech(now: number, horizon: number) {
-    const voice = this.voice!
-    if ((this.targets.tv ?? 0) < .004) {
-      // Out of earshot: the presenter stops rather than hold a vowel.
-      voice.envelope.gain.setTargetAtTime(0, now, .05)
-      voice.clock = now + .3
-      return
-    }
-    while (voice.clock < horizon) {
-      const at = Math.max(now, voice.clock)
-      if (voice.syllables <= 0) {
-        // End of a sentence: a breath, then the next starts higher.
-        voice.envelope.gain.setTargetAtTime(0, at, .03)
-        voice.clock = at + random(.32, .95)
-        voice.syllables = 6 + Math.floor(Math.random() * 13)
-        voice.pitch = random(1.08, 1.2)
-        continue
-      }
-      const length = random(.11, .2)
-      const vowel = VOWELS[Math.floor(Math.random() * VOWELS.length)]
-      voice.formants.forEach((formant, index) => formant.frequency.setTargetAtTime(vowel[index] * random(.96, 1.04), at, .02))
-      voice.glottis.frequency.setTargetAtTime(122 * voice.pitch * random(.96, 1.05), at, .03)
-      voice.pitch *= .986
-      voice.envelope.gain.setTargetAtTime(random(.5, 1), at, .014)
-      voice.envelope.gain.setTargetAtTime(.05, at + length * .7, .028)
-      if (Math.random() < .42) {
-        voice.consonant.gain.setValueAtTime(0, at)
-        voice.consonant.gain.linearRampToValueAtTime(random(.3, 1), at + .008)
-        voice.consonant.gain.linearRampToValueAtTime(0, at + random(.03, .06))
-      }
-      voice.clock = at + length
-      voice.syllables -= 1
     }
   }
 

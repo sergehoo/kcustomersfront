@@ -140,9 +140,9 @@ at 11 cm under the coping. `npm run optimize:production` leaves those two
 materials out of mesh simplification, which flattened the pleats.
 
 `refine_media.py` hangs the living room's television on the chimney breast,
-in place of the canvas: the sound design plays a news programme from that
-room, and a sound needs its source in the picture. The screen's image is drawn
-by the script (a generic studio, no channel's branding).
+in place of the canvas. At runtime its screen plays Kaydan's presentation film
+(`src/experience/Television.tsx`, `public/media/`); the image the script draws
+on it is only the model's own fallback.
 
 `camera_shots.py` holds the visit's compositions: per room an overview and
 focus shots, each aimed at a `TARGET_*` anchor on real furniture, and the

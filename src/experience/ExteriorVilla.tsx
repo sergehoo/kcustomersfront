@@ -104,7 +104,6 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
   const gltf = useGLTF(villaModel(mobile), true, true)
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene])
   const water = useRef<WaterUniforms | null>(null)
-  const screen = useRef<MeshStandardMaterial | null>(null)
   const sheer = useRef<SheerUniforms | null>(null)
   const [plasterNormal, plasterRoughness, woodGrain] = useTexture([
     '/assets/materials/detail/plaster-normal.webp',
@@ -328,10 +327,10 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
         if (name === 'KAYDAN_TV_SCREEN') {
           // The living-room television (blender/scripts/refine_media.py): on by
           // day as by night — it is not a lamp, the ambience does not dim it.
+          // Television.tsx gives it its picture and its brightness.
           material.userData.kdScreen = true
           material.roughness = .1
           material.envMapIntensity = .4
-          screen.current = material
         }
         // The lawn strips were a flat green: borrow the hillside's photographic
         // grass at a finer scale and pull it towards a watered green.
@@ -513,11 +512,6 @@ export function ExteriorVilla({ mobile, ambience, progress }: { mobile: boolean;
   useFrame((state, delta) => {
     if (water.current) water.current.kdWaterTime.value += Math.min(delta, .05)
     if (sheer.current) sheer.current.kdSheerTime.value = state.clock.elapsedTime
-    // A programme is never a still: the picture breathes a few percent.
-    if (screen.current) {
-      const t = state.clock.elapsedTime
-      screen.current.emissiveIntensity = (ambience.mode === 'night' ? .7 : .95) * (1 + .05 * Math.sin(t * 6.7) + .04 * Math.sin(t * 2.3 + 1.1) + .03 * Math.sin(t * 13.9))
-    }
     const z = state.camera.position.z
     hidden.upstairs.forEach((object) => { object.visible = z < 16.4 })
     hidden.hall.forEach((object) => { object.visible = z > 8.6 && z < 18.2 })

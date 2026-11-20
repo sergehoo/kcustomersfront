@@ -4,6 +4,7 @@ import { Box3, MathUtils, Mesh, Vector3 } from 'three'
 import type { Ambience } from '../ambience'
 import { BIRDS, birdPosition } from '../Birds'
 import { WIND_TIME } from '../realism/wind'
+import { television } from '../Television'
 import type { Mix } from './engine'
 import { mixAt } from './mix'
 import { audio, setSoundMode } from './sound'
@@ -14,12 +15,17 @@ import { audio, setSoundMode } from './sound'
  *
  * - the scroll gives the room mix, blended between rooms (mix.ts);
  * - the camera is the listener, so the television is heard from where it hangs;
+ * - while the television's film plays, the music ducks under it and comes
+ *   back when the room is left — it never stops;
  * - the wind is the gust the planting is in at that moment, at the camera;
  * - a bird that crosses the frame is heard, and from its side of the screen;
  * - the pool comes forward when it is actually in the picture.
  */
 /** The water surface: its middle and its four corners. The pool is "in the
  *  picture" as soon as any of them is — from the terrace its middle often is not. */
+/** Music under the film: low enough for a voice to be followed. */
+const DUCKED = .05
+
 const POOL = [[2.4, .4], [-2.3, -1.1], [7.2, -1.1], [-2.3, 1.9], [7.2, 1.9]].map(([x, z]) => new Vector3(x, 3.68, z))
 
 export function SoundDesign({ progress, ambience }: { progress: number; ambience: Ambience }) {
@@ -28,7 +34,7 @@ export function SoundDesign({ progress, ambience }: { progress: number; ambience
   const point = useMemo(() => new Vector3(), [])
   const forward = useMemo(() => new Vector3(), [])
   const poolFocus = useRef(.55)
-  const television = useRef({ found: false, frames: 0 })
+  const screenLookup = useRef({ found: false, frames: 0 })
 
   useEffect(() => { setSoundMode(ambience.mode) }, [ambience.mode])
 
@@ -62,6 +68,10 @@ export function SoundDesign({ progress, ambience }: { progress: number; ambience
     poolFocus.current = MathUtils.damp(poolFocus.current, water ? 1 : .55, 1.4, delta)
     mix.pool *= poolFocus.current
 
+    // The film's sound exists only while it runs; the engine fades both ways.
+    if (television.playing) mix.music = Math.min(mix.music, DUCKED)
+    else mix.tv = 0
+
     audio.setMix(mix)
     camera.getWorldDirection(forward)
     audio.setListener(camera.position, forward)
@@ -72,7 +82,7 @@ export function SoundDesign({ progress, ambience }: { progress: number; ambience
     audio.setWind(gust, Math.sin(t * .19) * .45)
 
     // The screen is part of the villa model, which arrives after this mounts.
-    const tv = television.current
+    const tv = screenLookup.current
     if (!tv.found && (tv.frames += 1) % 45 === 1) {
       scene.traverse((child) => {
         if (tv.found || !(child instanceof Mesh)) return
