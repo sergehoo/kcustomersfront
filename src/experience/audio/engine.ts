@@ -407,10 +407,16 @@ export class AudioExperience {
   }
 
   /**
-   * The screen's sound, in the room. A light touch on both counts: the film
-   * must stay intelligible from the sofa as from the fireplace, so distance
-   * only takes a little off, and the "flat-screen speaker" filtering only
-   * trims the extremes.
+   * The screen's sound, in the room. Distance only takes a little off: the
+   * film must stay intelligible from the sofa as from the fireplace.
+   *
+   * The filtering is a dialogue EQ. The film carries its own music bed under
+   * the voice, continuous and heavy in the bass (as much energy under 250 Hz
+   * as in the whole speech band): in a room that already has the visit's
+   * music, it read as "the music is loud" rather than as someone speaking.
+   * Cutting the lows and lifting the presence takes about 8 dB off that bed
+   * and under 2 dB off the voice — which is also what a flat screen's small
+   * speakers do.
    */
   private wireTelevision() {
     const context = this.context
@@ -426,7 +432,11 @@ export class AudioExperience {
     this.panner = panner
     // An element can feed one graph only, and only once.
     this.screenSource = context.createMediaElementSource(this.screen)
-    this.screenSource.connect(this.filter('highpass', 140, .6)).connect(this.filter('lowpass', 9000, .5)).connect(panner)
+    const shelf = this.filter('lowshelf', 380)
+    shelf.gain.value = -5
+    const presence = this.filter('peaking', 2700, .9)
+    presence.gain.value = 4
+    this.screenSource.connect(this.filter('highpass', 210, .7)).connect(shelf).connect(presence).connect(this.filter('lowpass', 9000, .5)).connect(panner)
   }
 
   // ── music ──────────────────────────────────────────────────────────────────

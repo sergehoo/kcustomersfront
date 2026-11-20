@@ -8,7 +8,7 @@ import type { Mix, SoundMode } from './engine'
  *
  * Levels are gains on layers that all sit at a comparable loudness, so the
  * numbers read as a mix: music around .15, the garden between .10 and .15,
- * the pool up to .19, the television's film at .32 over a ducked music. Nothing is switched on or off
+ * the pool up to .19, the television's film at .38 over a ducked music. Nothing is switched on or off
  * by a threshold: `mixAt` blends a room's row into the next one while the
  * camera travels between them, the way the lighting is interpolated, and the
  * engine then glides every gain to its target.
@@ -22,7 +22,7 @@ const ROOMS: Record<RoomId, Mix> = {
   visitor:     { music: .15, exterior: .03, birds: .03, wind: .035, room: .05, tv: 0,  pool: 0 },
   // The living room's `tv` is the level of the film on its screen — heard
   // only while it plays, and then the music ducks under it (SoundDesign.tsx).
-  living:      { music: .14, exterior: .02, birds: .02, wind: .03, room: .05,  tv: .32,  pool: 0 },
+  living:      { music: .14, exterior: .02, birds: .02, wind: .03, room: .05,  tv: .38,  pool: 0 },
   dining:      { music: .15, exterior: .015, birds: .015, wind: .02, room: .05, tv: 0, pool: 0 },
   kitchen:     { music: .15, exterior: .015, birds: .015, wind: .02, room: .05, tv: 0, pool: 0 },
   circulation: { music: .16, exterior: .01, birds: .01, wind: .015, room: .05, tv: 0,  pool: 0 },
@@ -42,6 +42,9 @@ const ROOMS: Record<RoomId, Mix> = {
 const NIGHT: Mix = { music: 1, exterior: .85, birds: .1, wind: .8, room: 1, tv: 1, pool: 1.22 }
 
 const LAYERS = Object.keys(NIGHT) as (keyof Mix)[]
+
+/** The film on the living-room screen, for as long as it plays. */
+export const FILM_LEVEL = ROOMS.living.tv
 
 /** Share of a room's scroll span after which its sound starts turning into the next room's. */
 const HANDOVER = .7

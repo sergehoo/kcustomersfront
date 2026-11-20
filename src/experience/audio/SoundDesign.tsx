@@ -6,7 +6,7 @@ import { BIRDS, birdPosition } from '../Birds'
 import { WIND_TIME } from '../realism/wind'
 import { television } from '../Television'
 import type { Mix } from './engine'
-import { mixAt } from './mix'
+import { FILM_LEVEL, mixAt } from './mix'
 import { audio, setSoundMode } from './sound'
 
 /**
@@ -23,8 +23,12 @@ import { audio, setSoundMode } from './sound'
  */
 /** The water surface: its middle and its four corners. The pool is "in the
  *  picture" as soon as any of them is — from the terrace its middle often is not. */
-/** Music under the film: low enough for a voice to be followed. */
-const DUCKED = .05
+/**
+ * Music under the film. The film has its own score: at .05 the visit's music
+ * was still a second tune under it. At .02 it is masked — still playing, so it
+ * comes back without a restart, but no longer heard as music.
+ */
+const DUCKED = .02
 
 const POOL = [[2.4, .4], [-2.3, -1.1], [7.2, -1.1], [-2.3, 1.9], [7.2, 1.9]].map(([x, z]) => new Vector3(x, 3.68, z))
 
@@ -69,8 +73,13 @@ export function SoundDesign({ progress, ambience }: { progress: number; ambience
     mix.pool *= poolFocus.current
 
     // The film's sound exists only while it runs; the engine fades both ways.
-    if (television.playing) mix.music = Math.min(mix.music, DUCKED)
-    else mix.tv = 0
+    // While it runs it holds one level for the whole room: blended towards the
+    // next room like the other layers, it sank through the second half of the
+    // living room and left the music on top of the voice.
+    if (television.playing) {
+      mix.tv = FILM_LEVEL
+      mix.music = Math.min(mix.music, DUCKED)
+    } else mix.tv = 0
 
     audio.setMix(mix)
     camera.getWorldDirection(forward)
